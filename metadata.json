@@ -1,0 +1,5 @@
+{
+  "name": "PharmeSense",
+  "description": "PharmeSense — A smart pharmacy management platform to monitor medicine inventory, track expiry dates, manage sales, analyze demand, optimize stock levels, handle supplier metrics, analyze purchase patterns, track prescriptions, and provide interactive business insights and notifications.",
+  "requestFramePermissions": ["camera"]
+}
