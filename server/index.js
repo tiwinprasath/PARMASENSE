@@ -90,6 +90,70 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'pharmasense-api', time: new Date().toISOString() });
 });
 
+// --- Auth Endpoints ----------------------------------------------------
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    const state = db.readState();
+    const users = state.users || [];
+    const matched = users.find(
+      (u) => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.passwordHash === password
+    );
+    if (!matched) {
+      return res.status(401).json({ error: 'Invalid email or passcode credentials.' });
+    }
+    res.json({
+      success: true,
+      user: {
+        email: matched.email,
+        name: matched.name,
+        role: matched.role
+      }
+    });
+  } catch (err) {
+    console.error('[auth] Login error:', err);
+    res.status(500).json({ error: 'Internal server error during login' });
+  }
+});
+
+app.post('/api/auth/register', (req, res) => {
+  try {
+    const { name, email, password, role } = req.body || {};
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+    const state = db.readState();
+    const users = state.users || [];
+    const exists = users.some((u) => u.email.toLowerCase() === String(email).trim().toLowerCase());
+    if (exists) {
+      return res.status(400).json({ error: 'An account with this email address already exists.' });
+    }
+    const newUser = {
+      email: String(email).trim(),
+      passwordHash: String(password),
+      role: role || 'Admin',
+      name: String(name).trim()
+    };
+    const updatedUsers = [...users, newUser];
+    db.writeCollection('users', updatedUsers);
+    res.json({
+      success: true,
+      message: 'Account registered successfully',
+      user: {
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role
+      }
+    });
+  } catch (err) {
+    console.error('[auth] Registration error:', err);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
+});
+
 // --- Whole-state endpoints ---------------------------------------------
 // GET  /api/state  -> returns every collection in one payload (used on app load)
 app.get('/api/state', (_req, res) => {

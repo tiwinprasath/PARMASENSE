@@ -12,6 +12,13 @@ import {
   Customer, Prescription, Notification, SchedulerLog
 } from '../types';
 
+export interface UserAccount {
+  email: string;
+  passwordHash: string;
+  role: string;
+  name: string;
+}
+
 export interface AppState {
   medicines: MedicineMaster[];
   inventory: InventoryItem[];
@@ -21,6 +28,7 @@ export interface AppState {
   prescriptions: Prescription[];
   notifications: Notification[];
   schedulerLogs: SchedulerLog[];
+  users?: UserAccount[];
 }
 
 const API_BASE = '/api';
@@ -68,6 +76,18 @@ export const api = {
   savePrescriptions: (records: Prescription[]) => request<Prescription[]>('/prescriptions', { method: 'PUT', body: JSON.stringify(records) }),
   saveNotifications: (records: Notification[]) => request<Notification[]>('/notifications', { method: 'PUT', body: JSON.stringify(records) }),
   saveSchedulerLogs: (records: SchedulerLog[]) => request<SchedulerLog[]>('/schedulerLogs', { method: 'PUT', body: JSON.stringify(records) }),
+  fetchUsers: () => request<UserAccount[]>('/users'),
+  saveUsers: (records: UserAccount[]) => request<UserAccount[]>('/users', { method: 'PUT', body: JSON.stringify(records) }),
+  loginAuth: (credentials: { email: string; password: string }) => 
+    request<{ success: boolean; user: { email: string; name: string; role: string } }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    }),
+  registerAuth: (data: { name: string; email: string; password: string; role: string }) => 
+    request<{ success: boolean; message: string; user: { email: string; name: string; role: string } }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
 };
 
 export default api;

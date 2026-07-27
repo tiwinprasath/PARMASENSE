@@ -26,7 +26,8 @@ const COLLECTIONS = [
   'customers',
   'prescriptions',
   'notifications',
-  'schedulerLogs'
+  'schedulerLogs',
+  'users'
 ];
 
 function emptyState() {
@@ -61,10 +62,16 @@ function readState() {
   try {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    // Guard against a partially-shaped db.json (e.g. manually edited)
     const state = emptyState();
+    const seeded = loadSeed();
     for (const key of COLLECTIONS) {
-      state[key] = Array.isArray(parsed[key]) ? parsed[key] : [];
+      if (Array.isArray(parsed[key]) && parsed[key].length > 0) {
+        state[key] = parsed[key];
+      } else if (Array.isArray(seeded[key])) {
+        state[key] = seeded[key];
+      } else {
+        state[key] = [];
+      }
     }
     return state;
   } catch (err) {

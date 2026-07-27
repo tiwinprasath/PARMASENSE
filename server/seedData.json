@@ -378,5 +378,25 @@
       "lowStockFound": 0,
       "status": "Warning"
     }
+  ],
+  "users": [
+    {
+      "email": "tiwinprasath056@gmail.com",
+      "passwordHash": "admin1234",
+      "role": "Admin",
+      "name": "Tiwin Prasath"
+    },
+    {
+      "email": "pharmacist@pharmasense.com",
+      "passwordHash": "pharma123",
+      "role": "Pharmacist",
+      "name": "Dr. Sarah Jenkins"
+    },
+    {
+      "email": "manager@pharmasense.com",
+      "passwordHash": "manager123",
+      "role": "Manager",
+      "name": "Alex Rivera"
+    }
   ]
 }

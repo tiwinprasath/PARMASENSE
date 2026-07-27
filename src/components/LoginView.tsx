@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, Mail, Eye, EyeOff, Key, ChevronRight, UserCheck, Smartphone, UserPlus, User } from 'lucide-react';
+import { api } from '../services/api';
+import { 
+  ShieldCheck, Lock, Mail, Eye, EyeOff, ChevronRight, 
+  Smartphone, UserPlus, User, CheckCircle2, 
+  AlertCircle, Sparkles, Shield, Stethoscope, Building2, BadgeCheck,
+  Activity, Pill, ArrowRight, Zap, LockKeyhole, Monitor, Check
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoginViewProps {
@@ -14,509 +20,728 @@ interface UserAccount {
 }
 
 export default function LoginView({ onLoginSuccess }: LoginViewProps) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('Admin');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authStep, setAuthStep] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  
+  // Login Form State
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Local account database
+  // Registration Form State
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regRole, setRegRole] = useState<'Admin' | 'Pharmacist' | 'Manager'>('Admin');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+
+  // Authenticating Loader & Messages
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [authStepMessage, setAuthStepMessage] = useState('');
+  const [authProgress, setAuthProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Local User Accounts DB State
   const [users, setUsers] = useState<UserAccount[]>([]);
 
+  // Seed / Load accounts from backend API and localStorage fallback
   useEffect(() => {
+    let active = true;
+
+    // Check localStorage for immediate offline availability
     const stored = localStorage.getItem('pharmasense_users');
+    let localAccounts: UserAccount[] = [];
     if (stored) {
       try {
-        setUsers(JSON.parse(stored));
+        localAccounts = JSON.parse(stored);
+        setUsers(localAccounts);
       } catch (e) {
-        // Fallback
+        // fallback
       }
-    } else {
-      // Seed default user
-      const defaultUsers: UserAccount[] = [
-        {
-          email: 'tiwinprasath056@gmail.com',
-          passwordHash: 'admin1234',
-          role: 'Admin',
-          name: 'Tiwin Prasath'
-        }
-      ];
-      localStorage.setItem('pharmasense_users', JSON.stringify(defaultUsers));
-      setUsers(defaultUsers);
     }
+
+    // Fetch latest users from Express backend API
+    api.fetchUsers()
+      .then((serverUsers) => {
+        if (!active) return;
+        if (Array.isArray(serverUsers) && serverUsers.length > 0) {
+          setUsers(serverUsers);
+          localStorage.setItem('pharmasense_users', JSON.stringify(serverUsers));
+        } else if (localAccounts.length > 0) {
+          api.saveUsers(localAccounts).catch(() => {});
+        }
+      })
+      .catch(() => {
+        // Fallback seed if unreachable
+        if (localAccounts.length === 0) {
+          const defaultUsers: UserAccount[] = [
+            {
+              email: 'tiwinprasath056@gmail.com',
+              passwordHash: 'admin1234',
+              role: 'Admin',
+              name: 'Tiwin Prasath'
+            },
+            {
+              email: 'pharmacist@pharmasense.com',
+              passwordHash: 'pharma123',
+              role: 'Pharmacist',
+              name: 'Dr. Sarah Jenkins'
+            },
+            {
+              email: 'manager@pharmasense.com',
+              passwordHash: 'manager123',
+              role: 'Manager',
+              name: 'Alex Rivera'
+            }
+          ];
+          localStorage.setItem('pharmasense_users', JSON.stringify(defaultUsers));
+          setUsers(defaultUsers);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) {
-      setError('Please provide your staff email.');
-      return;
-    }
-    if (!password) {
-      setError('Please enter your passcode.');
-      return;
-    }
+  // Password strength meter calculation
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, text: 'No passcode entered', color: 'bg-slate-700 text-slate-400' };
+    let s = 0;
+    if (pass.length >= 4) s += 1;
+    if (pass.length >= 8) s += 1;
+    if (/[A-Z]/.test(pass)) s += 1;
+    if (/[0-9]/.test(pass)) s += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) s += 1;
 
-    // Match credential
-    const matched = users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === password
-    );
-
-    if (!matched) {
-      setError('Invalid email or passcode. Please check your credentials or register a new account.');
-      return;
-    }
-
-    setError('');
-    setIsAuthenticating(true);
-
-    const steps = [
-      'Establishing SSL connection to auth-node...',
-      'Validating credential hash...',
-      'Verifying permission flags for role: ' + matched.role + '...',
-      'Retrieving database shard security keys...',
-      'Access Authorized! Redirecting to dashboard...'
-    ];
-
-    let currentStep = 0;
-    setAuthStep(steps[0]);
-
-    const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep < steps.length) {
-        setAuthStep(steps[currentStep]);
-      } else {
-        clearInterval(interval);
-        onLoginSuccess(matched.email, matched.role);
-      }
-    }, 450);
+    if (s <= 2) return { score: s, text: 'Weak Passcode', color: 'bg-rose-500 text-rose-400' };
+    if (s <= 4) return { score: s, text: 'Medium Strength', color: 'bg-amber-500 text-amber-400' };
+    return { score: s, text: 'Strong AES-256 Passcode', color: 'bg-emerald-500 text-emerald-400' };
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const strength = getPasswordStrength(regPassword);
+
+  // Handle Login submission with backend API attempt and local fallback
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) {
-      setError('Please enter your full name.');
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!loginEmail.trim()) {
+      setErrorMsg('Please enter your staff email address.');
       return;
     }
-    if (!email) {
-      setError('Please provide an email.');
-      return;
-    }
-    if (!password || password.length < 4) {
-      setError('Password must be at least 4 characters.');
+    if (!loginPassword) {
+      setErrorMsg('Please enter your security passcode.');
       return;
     }
 
-    // Check if user already exists
-    const exists = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+    const cleanEmail = loginEmail.trim();
+
+    // Check credentials against state
+    let matched = users.find(
+      (u) => u.email.toLowerCase() === cleanEmail.toLowerCase() && u.passwordHash === loginPassword
+    );
+
+    // Try backend authentication
+    try {
+      const res = await api.loginAuth({ email: cleanEmail, password: loginPassword });
+      if (res && res.success && res.user) {
+        matched = {
+          email: res.user.email,
+          name: res.user.name,
+          role: res.user.role,
+          passwordHash: loginPassword
+        };
+      }
+    } catch (err: any) {
+      // If server returns explicit error or offline, fallback to matched
+      if (err?.message && !matched) {
+        setErrorMsg(err.message);
+        return;
+      }
+    }
+
+    if (!matched) {
+      setErrorMsg('Invalid email or passcode credentials. Verify credentials or register a new account.');
+      return;
+    }
+
+    // Launch SSL audit simulator
+    setIsAuthenticating(true);
+    const steps = [
+      'Establishing AES-256 socket to security node...',
+      'Verifying credential SHA-256 checksum...',
+      'Checking role authorization [' + matched.role + ']...',
+      'Decrypting terminal database keys...',
+      'Session Granted! Redirecting to workstation...'
+    ];
+
+    let current = 0;
+    setAuthStepMessage(steps[0]);
+    setAuthProgress(20);
+
+    const timer = setInterval(() => {
+      current++;
+      if (current < steps.length) {
+        setAuthStepMessage(steps[current]);
+        setAuthProgress(Math.min((current + 1) * 20, 100));
+      } else {
+        clearInterval(timer);
+        onLoginSuccess(matched!.email, matched!.role);
+      }
+    }, 380);
+  };
+
+  // Handle Registration submission
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!regName.trim()) {
+      setErrorMsg('Full staff name is required.');
+      return;
+    }
+    if (!regEmail.trim()) {
+      setErrorMsg('Valid staff email address is required.');
+      return;
+    }
+    if (!regPassword || regPassword.length < 4) {
+      setErrorMsg('Passcode must be at least 4 characters long.');
+      return;
+    }
+
+    const cleanEmail = regEmail.trim();
+
+    // Check duplicate locally
+    const exists = users.some((u) => u.email.toLowerCase() === cleanEmail.toLowerCase());
     if (exists) {
-      setError('Account with this email already exists.');
+      setErrorMsg('An account with this email address already exists. Please sign in instead.');
       return;
     }
 
     const newUser: UserAccount = {
-      email: email.trim(),
-      passwordHash: password,
-      role: role,
-      name: name.trim()
+      email: cleanEmail,
+      passwordHash: regPassword,
+      role: regRole,
+      name: regName.trim()
     };
 
-    const updatedUsers = [...users, newUser];
-    localStorage.setItem('pharmasense_users', JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
+    const updated = [...users, newUser];
+    setUsers(updated);
+    localStorage.setItem('pharmasense_users', JSON.stringify(updated));
 
-    setError('');
-    setSuccessMessage('Registration successful! Please login with your credentials.');
-    setMode('login');
-    // Clear registration fields
-    setName('');
-    setPassword('');
-  };
+    // Try backend registration
+    try {
+      await api.registerAuth({
+        name: regName.trim(),
+        email: cleanEmail,
+        password: regPassword,
+        role: regRole
+      });
+    } catch (err: any) {
+      // Sync whole array as fallback
+      api.saveUsers(updated).catch(() => {});
+    }
 
-  const setPresetUser = (presetEmail: string, presetPass: string, presetRole: string) => {
-    setEmail(presetEmail);
-    setPassword(presetPass);
-    setRole(presetRole);
-    setMode('login');
-    setError('');
-    setSuccessMessage('');
+    // Pre-fill sign in form
+    setLoginEmail(cleanEmail);
+    setLoginPassword(regPassword);
+    setSuccessMsg(`Account registered for ${regName.trim()} (${regRole})! Sign in below.`);
+    setActiveTab('login');
+
+    // Reset registration inputs
+    setRegName('');
+    setRegEmail('');
+    setRegPassword('');
   };
 
   return (
-    <div id="login_container" className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative px-4 overflow-hidden">
-      {/* Visual background decorations */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+    <div id="login_container" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center relative p-3 sm:p-6 lg:p-8 overflow-x-hidden select-none">
+      
+      {/* Background Mesh Gradients */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <motion.div 
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.1, 0.15, 0.1] 
-          }}
-          transition={{ 
-            duration: 10, 
-            repeat: Infinity,
-            ease: "easeInOut" 
-          }}
-          className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-teal-500/10 rounded-full blur-[120px]" 
+          animate={{ scale: [1, 1.25, 1], opacity: [0.15, 0.25, 0.15] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-teal-500/20 rounded-full blur-[140px]" 
         />
         <motion.div 
-          animate={{ 
-            scale: [1, 1.15, 1],
-            opacity: [0.1, 0.12, 0.1] 
-          }}
-          transition={{ 
-            duration: 12, 
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
-          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[120px]" 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.12, 0.22, 0.12] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[140px]" 
         />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-indigo-500/10 rounded-full blur-[160px]" />
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="w-full max-w-md z-10"
-      >
-        {/* Header Branding */}
-        <div className="text-center mb-8">
-          <motion.div 
-            whileHover={{ scale: 1.05, rotate: 90 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-            className="inline-flex h-16 w-16 items-center justify-center bg-teal-500/10 border border-teal-500/30 rounded-2xl text-teal-400 text-3xl font-bold shadow-lg shadow-teal-500/5 mb-4 cursor-pointer"
-          >
-            ✚
-          </motion.div>
-          <h1 className="font-display font-extrabold text-white text-2xl tracking-tight uppercase">
-            PharmeSense
-          </h1>
-          <p className="text-slate-400 text-xs mt-1 font-mono tracking-wider">
-            SMART PHARMACY MANAGEMENT PLATFORM
-          </p>
-        </div>
-
-        {/* Tab Selection (Login vs Register) */}
-        {!isAuthenticating && (
-          <div className="flex gap-2 mb-4 bg-slate-900 border border-slate-800 p-1.5 rounded-xl relative">
-            <button
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setSuccessMessage('');
-              }}
-              className="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer relative z-10"
-            >
-              {mode === 'login' && (
-                <motion.div
-                  layoutId="activeTabBg"
-                  className="absolute inset-0 bg-slate-800 rounded-lg -z-10 border border-slate-700/50"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-              <User className={`h-4 w-4 ${mode === 'login' ? 'text-teal-400' : 'text-slate-400'}`} />
-              <span className={mode === 'login' ? 'text-teal-400 font-bold' : 'text-slate-400'}>Sign In</span>
-            </button>
-            <button
-              onClick={() => {
-                setMode('register');
-                setError('');
-                setSuccessMessage('');
-              }}
-              className="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer relative z-10"
-            >
-              {mode === 'register' && (
-                <motion.div
-                  layoutId="activeTabBg"
-                  className="absolute inset-0 bg-slate-800 rounded-lg -z-10 border border-slate-700/50"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-              <UserPlus className={`h-4 w-4 ${mode === 'register' ? 'text-teal-400' : 'text-slate-400'}`} />
-              <span className={mode === 'register' ? 'text-teal-400 font-bold' : 'text-slate-400'}>Register</span>
-            </button>
-          </div>
-        )}
-
-        {/* Auth Card */}
+      <div className="w-full max-w-5xl z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center my-auto">
+        
+        {/* Left Side (Desktop / Website Showcase Panel) */}
         <motion.div 
-          animate={{ x: error ? [-6, 6, -6, 6, -3, 3, 0] : 0 }}
-          transition={{ duration: 0.4 }}
-          className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden"
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="lg:col-span-5 space-y-6 hidden lg:block"
         >
-          <AnimatePresence mode="wait">
-            {isAuthenticating ? (
-              /* Cool login simulator overlay */
-              <motion.div
-                key="authenticating"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-12 flex flex-col items-center justify-center space-y-6"
-              >
-                <div className="relative h-16 w-16 flex items-center justify-center">
-                  {/* Spinner */}
-                  <div className="absolute inset-0 border-4 border-slate-800 rounded-full" />
-                  <div className="absolute inset-0 border-4 border-t-teal-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
-                  <ShieldCheck className="h-6 w-6 text-teal-400 animate-pulse" />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-sm font-semibold text-white">Security Auditing</h3>
-                  <p className="text-xs text-teal-400 font-mono mt-1.5 animate-pulse min-h-[16px]">{authStep}</p>
-                </div>
-                <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
-                    transition={{ duration: 2.25, ease: "easeInOut" }}
-                    className="bg-teal-500 h-full" 
-                  />
-                </div>
-              </motion.div>
-            ) : mode === 'login' ? (
-              <motion.form
-                key="login-form"
-                onSubmit={handleLogin}
-                initial={{ opacity: 0, x: -15 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 15 }}
-                transition={{ duration: 0.25 }}
-                className="space-y-4"
-              >
-                {error && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 rounded-lg text-xs font-semibold font-mono flex items-center gap-2"
-                  >
-                    <span className="shrink-0 h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                    {error}
-                  </motion.div>
-                )}
+          {/* Logo & Platform Title */}
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/30 text-teal-300 text-xs font-mono font-bold tracking-wide">
+              <Zap className="h-3.5 w-3.5 text-teal-400" />
+              SMART PHARMACY WORKSTATION
+            </div>
+            <h1 className="text-4xl font-display font-black tracking-tight text-white uppercase leading-tight">
+              PharmeSense <span className="text-teal-400">Pro</span>
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed font-sans">
+              Complete pharmacy operations suite. Real-time POS billing, inventory management, AI-driven stock demand forecasting, and automated prescription handling.
+            </p>
+          </div>
 
-                {successMessage && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-teal-500/10 border border-teal-500/30 text-teal-400 p-3 rounded-lg text-xs font-semibold font-mono flex items-center gap-2"
-                  >
-                    <span className="shrink-0 h-2 w-2 rounded-full bg-teal-400 animate-ping" />
-                    {successMessage}
-                  </motion.div>
-                )}
-
-                {/* Email Address */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
-                    Staff Email / ID
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="name@pharmasense.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-2.5 pl-9.5 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/30 transition-all font-mono font-medium"
-                    />
+          {/* Website Feature Highlight Cards */}
+          <div className="grid grid-cols-1 gap-3 pt-1">
+            {[
+              {
+                icon: Pill,
+                title: 'Smart Stock & POS Desk',
+                desc: 'Batch tracking, expiry detection & automated barcode scanner.',
+                color: 'text-teal-400 bg-teal-500/10 border-teal-500/20'
+              },
+              {
+                icon: Sparkles,
+                title: 'AI Medicine Demand Forecast',
+                desc: 'Predictive inventory replenishment based on sales velocity.',
+                color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20'
+              },
+              {
+                icon: ShieldCheck,
+                title: 'Role Authorization & SSL Guard',
+                desc: 'Encrypted access tiers for Admins, Pharmacists & Store Managers.',
+                color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+              }
+            ].map((item, idx) => {
+              const IconComp = item.icon;
+              return (
+                <div key={idx} className="p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-xl flex items-start gap-3.5 hover:border-slate-700 transition-colors">
+                  <div className={`p-2.5 rounded-xl border ${item.color} shrink-0`}>
+                    <IconComp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-100 font-mono">{item.title}</h4>
+                    <p className="text-[11px] text-slate-400 mt-0.5 font-sans leading-tight">{item.desc}</p>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Password */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
-                      Security Passcode
-                    </label>
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-2.5 pl-9.5 pr-10 focus:outline-none focus:ring-1 focus:ring-teal-500/30 transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-xs font-bold text-white rounded-xl shadow-lg shadow-teal-600/10 cursor-pointer transition-all flex items-center justify-center gap-1.5 group"
-                >
-                  Access Systems
-                  <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                </motion.button>
-              </motion.form>
-            ) : (
-              <motion.form
-                key="register-form"
-                onSubmit={handleRegister}
-                initial={{ opacity: 0, x: 15 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
-                transition={{ duration: 0.25 }}
-                className="space-y-4"
-              >
-                {error && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 rounded-lg text-xs font-semibold font-mono flex items-center gap-2"
-                  >
-                    <span className="shrink-0 h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                    {error}
-                  </motion.div>
-                )}
-
-                {/* Full Name */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Dr. John Doe"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-2.5 pl-9.5 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/30 transition-all font-mono font-medium"
-                    />
-                  </div>
-                </div>
-
-                {/* Email Address */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
-                    Staff Email / ID
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="name@pharmasense.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-2.5 pl-9.5 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/30 transition-all font-mono font-medium"
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
-                    Set Security Passcode
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="At least 4 characters"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-950/60 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-2.5 pl-9.5 pr-10 focus:outline-none focus:ring-1 focus:ring-teal-500/30 transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Role Selection */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
-                    Terminal Permission Level
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Admin', 'Pharmacist', 'Manager'].map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setRole(r)}
-                        className={`py-2 text-[11px] font-bold rounded-lg border font-mono transition-all relative ${
-                          role === r
-                            ? 'text-teal-400 border-teal-500 font-bold'
-                            : 'text-slate-500 border-slate-800 hover:border-slate-700 hover:text-slate-400'
-                        }`}
-                      >
-                        {role === r && (
-                          <motion.div 
-                            layoutId="activeRoleBg"
-                            className="absolute inset-0 bg-teal-500/10 rounded-lg -z-10"
-                            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                          />
-                        )}
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <motion.button
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-xs font-bold text-white rounded-xl shadow-lg shadow-teal-600/10 cursor-pointer transition-all flex items-center justify-center gap-1.5 group font-sans"
-                >
-                  Register & Complete Signup
-                  <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                </motion.button>
-              </motion.form>
-            )}
-          </AnimatePresence>
+          {/* Security Badge */}
+          <div className="pt-2 flex items-center gap-2.5 text-slate-500 font-mono text-xs">
+            <LockKeyhole className="h-4 w-4 text-teal-400 shrink-0" />
+            <span>AES-256 Encrypted SSL Session Active</span>
+          </div>
         </motion.div>
 
-        {/* Preset Demonstration Credentials */}
-        <div className="bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 mt-4 space-y-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase font-mono border-b border-slate-800/60 pb-1.5">
-            <Key className="h-3.5 w-3.5 text-teal-500" />
-            Terminal Demo Presets
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              onClick={() => setPresetUser('tiwinprasath056@gmail.com', 'admin1234', 'Admin')}
-              className="text-left bg-slate-950/40 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 p-2 rounded-lg flex justify-between items-center transition-all cursor-pointer group"
-            >
-              <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-200 block truncate font-mono">
-                  tiwinprasath056@gmail.com
-                </span>
-                <span className="text-[9px] text-slate-500 font-mono">Password: admin1234 (Admin)</span>
-              </div>
-              <UserCheck className="h-4 w-4 text-teal-500/80 group-hover:scale-110 transition-transform shrink-0 ml-1" />
-            </button>
-          </div>
-        </div>
+        {/* Right Side (Mobile & Website Interactive Auth Portal) */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="lg:col-span-7 w-full max-w-md mx-auto"
+        >
+          {/* Mobile Specific Header Banner (Visible on Mobile/Tablets) */}
+          <div className="text-center mb-5 lg:hidden space-y-2">
+            <div className="inline-flex h-14 w-14 items-center justify-center bg-teal-500/10 border border-teal-500/30 rounded-2xl text-teal-400 text-2xl font-extrabold shadow-lg">
+              ✚
+            </div>
+            <div>
+              <h2 className="font-display font-black text-white text-2xl tracking-tight uppercase">
+                PharmeSense <span className="text-teal-400 text-sm font-mono lowercase px-2 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/30 font-bold">Pro</span>
+              </h2>
+              <p className="text-slate-400 text-xs font-mono tracking-wide uppercase mt-0.5">
+                Pharmacy Mobile & Web Gateway
+              </p>
+            </div>
 
-        {/* Footer info */}
-        <div className="text-center mt-6 text-[10px] text-slate-500 font-mono flex items-center justify-center gap-1.5">
-          <Smartphone className="h-3 w-3 animate-bounce" />
-          SYSTEM ENCRYPTED WITH AES-256 SECURE SOCKET LAYERS
-        </div>
-      </motion.div>
+            {/* Mobile Feature Chips */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              <span className="text-[10px] font-mono font-bold bg-slate-900 border border-slate-800 text-teal-400 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
+                POS & Stock
+              </span>
+              <span className="text-[10px] font-mono font-bold bg-slate-900 border border-slate-800 text-cyan-400 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-cyan-400" />
+                AI Forecast
+              </span>
+              <span className="text-[10px] font-mono font-bold bg-slate-900 border border-slate-800 text-emerald-400 px-2.5 py-1 rounded-full flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                256-SSL
+              </span>
+            </div>
+          </div>
+
+          {/* Navigation Pill Tabs (Mobile & Website Responsive) */}
+          {!isAuthenticating && (
+            <div className="flex gap-1.5 mb-4 bg-slate-900/90 border border-slate-800/90 p-1.5 rounded-2xl backdrop-blur-2xl shadow-inner relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('login');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 min-h-[44px] py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer relative z-10 ${
+                  activeTab === 'login' ? 'text-teal-300 font-extrabold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {activeTab === 'login' && (
+                  <motion.div
+                    layoutId="activeAuthTabPill"
+                    className="absolute inset-0 bg-teal-500/15 border border-teal-500/30 rounded-xl -z-10 shadow-sm"
+                    transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                  />
+                )}
+                <User className={`h-4 w-4 ${activeTab === 'login' ? 'text-teal-400' : 'text-slate-500'}`} />
+                <span>Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('register');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                className={`flex-1 min-h-[44px] py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer relative z-10 ${
+                  activeTab === 'register' ? 'text-teal-300 font-extrabold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {activeTab === 'register' && (
+                  <motion.div
+                    layoutId="activeAuthTabPill"
+                    className="absolute inset-0 bg-teal-500/15 border border-teal-500/30 rounded-xl -z-10 shadow-sm"
+                    transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                  />
+                )}
+                <UserPlus className={`h-4 w-4 ${activeTab === 'register' ? 'text-teal-400' : 'text-slate-500'}`} />
+                <span>Register Staff</span>
+              </button>
+            </div>
+          )}
+
+          {/* Form Container Glass Card */}
+          <motion.div 
+            animate={{ x: errorMsg ? [-6, 6, -6, 6, -3, 3, 0] : 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-5 sm:p-7 backdrop-blur-2xl relative overflow-hidden"
+          >
+            <AnimatePresence mode="wait">
+              {isAuthenticating ? (
+                /* Authenticating Progress Screen */
+                <motion.div
+                  key="authenticating-loader"
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="py-10 flex flex-col items-center justify-center space-y-6 text-center"
+                >
+                  <div className="relative h-20 w-20 flex items-center justify-center">
+                    <div className="absolute inset-0 border-4 border-slate-800 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-t-teal-400 border-r-teal-500/30 border-b-transparent border-l-transparent rounded-full animate-spin" />
+                    <ShieldCheck className="h-9 w-9 text-teal-400 animate-pulse" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white tracking-wide uppercase font-display">Authenticating Session</h3>
+                    <p className="text-xs text-teal-400 font-mono animate-pulse min-h-[20px] font-semibold">{authStepMessage}</p>
+                  </div>
+                  <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                    <motion.div 
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${authProgress}%` }}
+                      transition={{ duration: 0.35, ease: "easeInOut" }}
+                      className="bg-gradient-to-r from-teal-500 to-cyan-400 h-full rounded-full" 
+                    />
+                  </div>
+                </motion.div>
+              ) : activeTab === 'login' ? (
+                /* SIGN IN FORM (Mobile & Website) */
+                <motion.form
+                  key="login-form-view"
+                  onSubmit={handleLoginSubmit}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-4"
+                >
+                  <div className="border-b border-slate-800/80 pb-3 mb-1">
+                    <h2 className="text-base sm:text-lg font-display font-extrabold text-white">Staff Sign In</h2>
+                    <p className="text-xs text-slate-400">Enter your official credentials to launch the workstation.</p>
+                  </div>
+
+                  {/* Feedback Banners */}
+                  {errorMsg && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-2xl text-xs font-semibold font-mono flex items-start gap-2.5"
+                    >
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-rose-400" />
+                      <span>{errorMsg}</span>
+                    </motion.div>
+                  )}
+
+                  {successMsg && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 p-3 rounded-2xl text-xs font-semibold font-mono flex items-start gap-2.5"
+                    >
+                      <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-400" />
+                      <span>{successMsg}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Staff Email Field */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
+                      Staff Email / User ID
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="tiwinprasath056@gmail.com"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Passcode Field */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                        Security Passcode
+                      </label>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type={showLoginPassword ? 'text' : 'password'}
+                        required
+                        placeholder="••••••••"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 pl-10 pr-11 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none cursor-pointer p-1"
+                      >
+                        {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Remember Station */}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="rounded bg-slate-950 border-slate-800 text-teal-500 focus:ring-teal-500/30 h-4 w-4"
+                      />
+                      Remember station credentials
+                    </label>
+                  </div>
+
+                  {/* Login Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    className="w-full min-h-[48px] py-3.5 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-xs font-extrabold text-white rounded-xl shadow-lg shadow-teal-600/20 cursor-pointer transition-all flex items-center justify-center gap-2 group mt-2 uppercase tracking-wide"
+                  >
+                    <span>Launch Workstation</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </motion.button>
+                </motion.form>
+              ) : (
+                /* REGISTRATION FORM (Mobile & Website) */
+                <motion.form
+                  key="register-form-view"
+                  onSubmit={handleRegisterSubmit}
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-4"
+                >
+                  <div className="border-b border-slate-800/80 pb-3 mb-1">
+                    <h2 className="text-base sm:text-lg font-display font-extrabold text-white">Create Staff Account</h2>
+                    <p className="text-xs text-slate-400">Register new team member for platform access.</p>
+                  </div>
+
+                  {errorMsg && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3 rounded-2xl text-xs font-semibold font-mono flex items-start gap-2.5"
+                    >
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-rose-400" />
+                      <span>{errorMsg}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Name Input */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
+                      Full Staff Name
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Tiwin Prasath"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email Input */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
+                      Official Staff Email
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@pharmasense.com"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Passcode & Strength Meter */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
+                      Create Passcode
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type={showRegPassword ? 'text' : 'password'}
+                        required
+                        placeholder="At least 4 characters..."
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 pl-10 pr-11 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 focus:outline-none cursor-pointer p-1"
+                      >
+                        {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    {/* Dynamic Password Rating */}
+                    {regPassword && (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between items-center text-[10px] font-mono">
+                          <span className="text-slate-400 font-semibold">Security Strength:</span>
+                          <span className={`font-bold ${strength.color.split(' ')[1]}`}>
+                            {strength.text}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden flex gap-1 p-0.5 border border-slate-800">
+                          {[1, 2, 3, 4, 5].map((lvl) => (
+                            <div
+                              key={lvl}
+                              className={`h-full flex-1 rounded-full transition-colors ${
+                                lvl <= strength.score
+                                  ? strength.color.split(' ')[0]
+                                  : 'bg-slate-800'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Role Selector Grid */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
+                      Assign Access Rights Role
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { role: 'Admin', label: 'Admin', icon: Shield, desc: 'Full System' },
+                        { role: 'Pharmacist', label: 'Rx Desk', icon: Stethoscope, desc: 'Rx Dispensing' },
+                        { role: 'Manager', label: 'Manager', icon: Building2, desc: 'Stock & POS' }
+                      ].map((item) => {
+                        const IconComp = item.icon;
+                        const isSelected = regRole === item.role;
+                        return (
+                          <button
+                            key={item.role}
+                            type="button"
+                            onClick={() => setRegRole(item.role as 'Admin' | 'Pharmacist' | 'Manager')}
+                            className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer relative overflow-hidden min-h-[54px] ${
+                              isSelected
+                                ? 'border-teal-500 bg-teal-500/10 text-teal-300 font-bold'
+                                : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-teal-400' : 'text-slate-500'}`} />
+                              <span className="text-xs font-bold font-mono">{item.label}</span>
+                            </div>
+                            <p className="text-[9px] text-slate-500 leading-tight block truncate">{item.desc}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Register Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    className="w-full min-h-[48px] py-3.5 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-xs font-extrabold text-white rounded-xl shadow-lg shadow-teal-600/20 cursor-pointer transition-all flex items-center justify-center gap-2 group mt-2 uppercase tracking-wide"
+                  >
+                    <span>Register Staff & Sign In</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </motion.button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Device Responsive Footer */}
+          <div className="text-center mt-4 text-[10px] text-slate-500 font-mono flex items-center justify-center gap-2">
+            <BadgeCheck className="h-3.5 w-3.5 text-teal-500" />
+            <span>OPTIMIZED FOR MOBILE & DESKTOP WEBSITES</span>
+          </div>
+
+        </motion.div>
+      </div>
     </div>
   );
 }

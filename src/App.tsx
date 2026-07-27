@@ -1034,8 +1034,16 @@ export default function App() {
                 ⚠️ {notifications.filter(n => !n.isRead).length} Warnings
               </span>
             )}
-            <span className="text-slate-500 font-semibold bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-lg block">
-              Operator: {userEmail} ({userRole})
+            <span className="text-slate-500 font-semibold bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-lg flex items-center gap-2">
+              <span>Operator: {userEmail} ({userRole})</span>
+              <button
+                onClick={handleLogout}
+                title="Sign Out / Switch Operator Account"
+                className="ml-1 text-[10px] font-mono font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-1 uppercase"
+              >
+                <LogOut className="h-3 w-3" />
+                Sign Out
+              </button>
             </span>
           </div>
         </header>
