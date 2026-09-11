@@ -27,7 +27,13 @@ const COLLECTIONS = [
   'prescriptions',
   'notifications',
   'schedulerLogs',
-  'users'
+  'users',
+  'medicineRequests',
+  'refillRequests',
+  'reminders',
+  'supportTickets',
+  'feedback'
+  , 'auditLogs'
 ];
 
 function emptyState() {

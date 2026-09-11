@@ -110,7 +110,13 @@ app.post('/api/auth/login', (req, res) => {
       user: {
         email: matched.email,
         name: matched.name,
-        role: matched.role
+        role: matched.role,
+        phone: matched.phone,
+        address: matched.address,
+        dateOfBirth: matched.dateOfBirth,
+        employeeId: matched.employeeId,
+        photoUrl: matched.photoUrl,
+        active: matched.active !== false
       }
     });
   } catch (err) {
@@ -121,7 +127,7 @@ app.post('/api/auth/login', (req, res) => {
 
 app.post('/api/auth/register', (req, res) => {
   try {
-    const { name, email, password, role } = req.body || {};
+    const { name, email, password, role, phone, address, dateOfBirth, employeeId, photoUrl } = req.body || {};
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
@@ -135,7 +141,13 @@ app.post('/api/auth/register', (req, res) => {
       email: String(email).trim(),
       passwordHash: String(password),
       role: role || 'Admin',
-      name: String(name).trim()
+      name: String(name).trim(),
+      phone: phone ? String(phone).trim() : undefined,
+      address: address ? String(address).trim() : undefined,
+      dateOfBirth: dateOfBirth ? String(dateOfBirth) : undefined,
+      employeeId: employeeId ? String(employeeId).trim() : undefined,
+      photoUrl: photoUrl ? String(photoUrl) : undefined,
+      active: true
     };
     const updatedUsers = [...users, newUser];
     db.writeCollection('users', updatedUsers);
@@ -145,7 +157,13 @@ app.post('/api/auth/register', (req, res) => {
       user: {
         email: newUser.email,
         name: newUser.name,
-        role: newUser.role
+        role: newUser.role,
+        phone: newUser.phone,
+        address: newUser.address,
+        dateOfBirth: newUser.dateOfBirth,
+        employeeId: newUser.employeeId,
+        photoUrl: newUser.photoUrl,
+        active: newUser.active
       }
     });
   } catch (err) {

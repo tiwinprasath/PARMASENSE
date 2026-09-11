@@ -10,17 +10,22 @@ import {
   Package, Snowflake, Barcode, ClipboardList, HelpCircle
 } from 'lucide-react';
 import BarcodeQRScanner from './BarcodeQRScanner';
+import PharmacyChatbot from './PharmacyChatbot';
 
 interface PharmacyAssistantViewProps {
   medicines: MedicineMaster[];
   inventory: InventoryItem[];
   suppliers: Supplier[];
+  role: string;
+  patientMode?: boolean;
 }
 
 export default function PharmacyAssistantView({
   medicines,
   inventory,
-  suppliers
+  suppliers,
+  role,
+  patientMode = false
 }: PharmacyAssistantViewProps) {
   const [query, setQuery] = useState('');
   const [selectedMedId, setSelectedMedId] = useState<string | null>(null);
@@ -79,6 +84,7 @@ export default function PharmacyAssistantView({
 
   return (
     <div className="space-y-6">
+      <PharmacyChatbot role={role} medicines={medicines} patientMode={patientMode} />
       {/* Tab Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
         <div>
@@ -188,7 +194,7 @@ export default function PharmacyAssistantView({
               </div>
 
               {/* Physical Inventory counts */}
-              <div className="space-y-3">
+              {!patientMode && <div className="space-y-3">
                 <h4 className="font-display text-sm font-bold text-slate-800 flex items-center gap-1.5">
                   <Package className="h-4.5 w-4.5 text-teal-600" />
                   Available Physical Stock levels
@@ -208,7 +214,7 @@ export default function PharmacyAssistantView({
                     <span className="font-bold text-rose-700 text-base mt-1 block">{medStats.expiredCount} units</span>
                   </div>
                 </div>
-              </div>
+              </div>}
 
               {/* Storage & Code attributes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -241,7 +247,7 @@ export default function PharmacyAssistantView({
               </div>
 
               {/* Procurement Primary Supplier */}
-              {medStats.supplier && (
+              {!patientMode && medStats.supplier && (
                 <div className="border-t border-slate-100 pt-5 space-y-3.5">
                   <h4 className="font-display text-sm font-bold text-slate-800">
                     Procurement Supplier Partner

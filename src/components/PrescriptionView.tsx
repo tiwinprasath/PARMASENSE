@@ -16,6 +16,7 @@ interface PrescriptionViewProps {
   inventory: InventoryItem[];
   onDispensePrescription: (prescriptionId: string, itemsToCart: Array<{ medicine: MedicineMaster; batch: InventoryItem; quantity: number }>) => void;
   onNavigateToTab: (tab: string) => void;
+  onUpdateStatus?: (id: string, status: Prescription['status'], note?: string) => void;
 }
 
 export default function PrescriptionView({
@@ -23,7 +24,8 @@ export default function PrescriptionView({
   medicines,
   inventory,
   onDispensePrescription,
-  onNavigateToTab
+  onNavigateToTab,
+  onUpdateStatus
 }: PrescriptionViewProps) {
   const [selectedPrxId, setSelectedPrxId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -363,6 +365,12 @@ export default function PrescriptionView({
               </div>
 
               {/* Action dispensaries */}
+              {selectedPrx.status === 'Pending' && onUpdateStatus && (
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => onUpdateStatus(selectedPrx.id, 'Approved')} className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold">Approve Prescription</button>
+                  <button type="button" onClick={() => { const reason = window.prompt('Enter rejection reason'); if (reason?.trim()) onUpdateStatus(selectedPrx.id, 'Rejected', reason.trim()); }} className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold">Reject Prescription</button>
+                </div>
+              )}
               {selectedPrx.status === 'Dispensed' ? (
                 <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-center gap-2.5 text-xs text-emerald-800">
                   <CheckCircle className="h-5 w-5 text-emerald-600" />

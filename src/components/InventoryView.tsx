@@ -16,6 +16,7 @@ interface InventoryViewProps {
   medicines: MedicineMaster[];
   inventory: InventoryItem[];
   suppliers: Supplier[];
+  readOnly?: boolean;
   onAddMedicine: (med: Omit<MedicineMaster, 'id'>) => void;
   onAddInventoryBatch: (item: Omit<InventoryItem, 'id' | 'status'>) => void;
   onRemoveBatch: (id: string) => void;
@@ -26,6 +27,7 @@ export default function InventoryView({
   medicines,
   inventory,
   suppliers,
+  readOnly = false,
   onAddMedicine,
   onAddInventoryBatch,
   onRemoveBatch,
@@ -301,13 +303,15 @@ export default function InventoryView({
               </select>
             </div>
 
-            <button
-              onClick={() => setShowAddMedModal(true)}
-              className="flex items-center justify-center gap-1.5 px-4.5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs cursor-pointer transition-all shrink-0"
-            >
-              <Plus className="h-4.5 w-4.5" />
-              Add Medicine
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowAddMedModal(true)}
+                className="flex items-center justify-center gap-1.5 px-4.5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs cursor-pointer transition-all shrink-0"
+              >
+                <Plus className="h-4.5 w-4.5" />
+                Add Medicine
+              </button>
+            )}
           </div>
 
           {/* Grid Layout of Medicines */}
@@ -494,13 +498,15 @@ export default function InventoryView({
 
                         {/* Action */}
                         <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => onRemoveBatch(item.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Quarantine & Remove Batch"
-                          >
-                            <Trash className="h-4.5 w-4.5" />
-                          </button>
+                          {!readOnly && (
+                            <button
+                              onClick={() => onRemoveBatch(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                              title="Quarantine & Remove Batch"
+                            >
+                              <Trash className="h-4.5 w-4.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

@@ -9,7 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LoginViewProps {
-  onLoginSuccess: (email: string, role: string) => void;
+  onLoginSuccess: (email: string, role: string, details?: Partial<UserAccount>) => void;
 }
 
 interface UserAccount {
@@ -17,6 +17,12 @@ interface UserAccount {
   passwordHash: string;
   role: string;
   name: string;
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  employeeId?: string;
+  photoUrl?: string;
+  active?: boolean;
 }
 
 export default function LoginView({ onLoginSuccess }: LoginViewProps) {
@@ -32,7 +38,11 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<'Admin' | 'Pharmacist' | 'Manager'>('Admin');
+  const [regRole, setRegRole] = useState<'Admin' | 'Pharmacist' | 'Manager' | 'Patient'>('Admin');
+  const [regPhone, setRegPhone] = useState('');
+  const [regAddress, setRegAddress] = useState('');
+  const [regDateOfBirth, setRegDateOfBirth] = useState('');
+  const [regEmployeeId, setRegEmployeeId] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Authenticating Loader & Messages
@@ -189,7 +199,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
         setAuthProgress(Math.min((current + 1) * 20, 100));
       } else {
         clearInterval(timer);
-        onLoginSuccess(matched!.email, matched!.role);
+        onLoginSuccess(matched!.email, matched!.role, matched!);
       }
     }, 380);
   };
@@ -226,7 +236,12 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
       email: cleanEmail,
       passwordHash: regPassword,
       role: regRole,
-      name: regName.trim()
+      name: regName.trim(),
+      phone: regPhone.trim() || undefined,
+      address: regAddress.trim() || undefined,
+      dateOfBirth: regDateOfBirth || undefined,
+      employeeId: regEmployeeId.trim() || undefined,
+      active: true
     };
 
     const updated = [...users, newUser];
@@ -239,7 +254,11 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
         name: regName.trim(),
         email: cleanEmail,
         password: regPassword,
-        role: regRole
+        role: regRole,
+        phone: regPhone.trim() || undefined,
+        address: regAddress.trim() || undefined,
+        dateOfBirth: regDateOfBirth || undefined,
+        employeeId: regEmployeeId.trim() || undefined
       });
     } catch (err: any) {
       // Sync whole array as fallback
@@ -256,6 +275,10 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     setRegName('');
     setRegEmail('');
     setRegPassword('');
+    setRegPhone('');
+    setRegAddress('');
+    setRegDateOfBirth('');
+    setRegEmployeeId('');
   };
 
   return (
@@ -635,6 +658,27 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">Phone Number</label>
+                      <input type="tel" required placeholder="+91 98765 43210" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 px-3.5 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">Date of Birth</label>
+                      <input type="date" value={regDateOfBirth} onChange={(e) => setRegDateOfBirth(e.target.value)} className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 px-3.5 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">Address</label>
+                    <textarea required rows={2} placeholder="Street, city, state" value={regAddress} onChange={(e) => setRegAddress(e.target.value)} className="w-full bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 px-3.5 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono resize-none" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">Employee ID <span className="text-slate-600">(staff roles)</span></label>
+                    <input type="text" placeholder="Optional staff ID" value={regEmployeeId} onChange={(e) => setRegEmployeeId(e.target.value)} className="w-full min-h-[44px] bg-slate-950/70 border border-slate-800 focus:border-teal-500 text-xs text-white rounded-xl py-3 px-3.5 focus:outline-none focus:ring-1 focus:ring-teal-500/40 transition-all font-mono" />
+                  </div>
+
                   {/* Passcode & Strength Meter */}
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
@@ -689,11 +733,12 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                     <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider mb-1.5">
                       Assign Access Rights Role
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
                         { role: 'Admin', label: 'Admin', icon: Shield, desc: 'Full System' },
                         { role: 'Pharmacist', label: 'Rx Desk', icon: Stethoscope, desc: 'Rx Dispensing' },
-                        { role: 'Manager', label: 'Manager', icon: Building2, desc: 'Stock & POS' }
+                        { role: 'Manager', label: 'Manager', icon: Building2, desc: 'Stock & POS' },
+                        { role: 'Patient', label: 'Patient', icon: User, desc: 'Patient Access' }
                       ].map((item) => {
                         const IconComp = item.icon;
                         const isSelected = regRole === item.role;
@@ -701,7 +746,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
                           <button
                             key={item.role}
                             type="button"
-                            onClick={() => setRegRole(item.role as 'Admin' | 'Pharmacist' | 'Manager')}
+                            onClick={() => setRegRole(item.role as 'Admin' | 'Pharmacist' | 'Manager' | 'Patient')}
                             className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer relative overflow-hidden min-h-[54px] ${
                               isSelected
                                 ? 'border-teal-500 bg-teal-500/10 text-teal-300 font-bold'

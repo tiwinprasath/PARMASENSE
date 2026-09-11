@@ -83,6 +83,7 @@ export interface Prescription {
   id: string;
   patientName: string;
   patientContact: string;
+  patientEmail?: string;
   doctorName: string;
   date: string;
   medicines: Array<{
@@ -91,17 +92,80 @@ export interface Prescription {
     qty: number;
   }>;
   imageUrl?: string;
-  status: 'Pending' | 'Dispensed' | 'Substituted';
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Completed' | 'Dispensed' | 'Substituted';
 }
 
 export interface Notification {
   id: string;
-  type: 'expiry' | 'low_stock' | 'expired' | 'restock' | 'supplier';
+  type: 'expiry' | 'low_stock' | 'expired' | 'restock' | 'supplier' | 'reminder' | 'prescription';
   title: string;
   message: string;
   date: string;
   isRead: boolean;
   severity: 'info' | 'warning' | 'error';
+  patientEmail?: string;
+  customerId?: string;
+  medicineIds?: string[];
+}
+
+export type PatientRequestStatus = 'Pending' | 'Verified' | 'Preparing' | 'Ready for Pickup' | 'Completed' | 'Rejected';
+
+export interface MedicineRequest {
+  id: string;
+  patientEmail: string;
+  medicineId: string;
+  quantity: number;
+  status: PatientRequestStatus;
+  createdAt: string;
+}
+
+export interface RefillRequest {
+  id: string;
+  patientEmail: string;
+  medicineId: string;
+  quantity: number;
+  status: PatientRequestStatus;
+  createdAt: string;
+}
+
+export interface MedicineReminder {
+  id: string;
+  patientEmail: string;
+  medicineId: string;
+  dosage: string;
+  time: string;
+  startDate: string;
+  endDate: string;
+  enabled: boolean;
+}
+
+export interface SupportTicket {
+  id: string;
+  patientEmail: string;
+  subject: string;
+  message: string;
+  status: 'Open' | 'In Progress' | 'Resolved';
+  response?: string;
+  createdAt: string;
+}
+
+export interface PatientFeedback {
+  id: string;
+  patientEmail: string;
+  rating: number;
+  comments: string;
+  createdAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userEmail: string;
+  role: string;
+  action: string;
+  module: string;
+  description: string;
+  result: 'Success' | 'Warning' | 'Error';
+  timestamp: string;
 }
 
 export interface SchedulerLog {

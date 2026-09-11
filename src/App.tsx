@@ -7,14 +7,14 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   MedicineMaster, InventoryItem, Sale, Supplier, 
-  Customer, Prescription, Notification, SchedulerLog 
+  Customer, Prescription, Notification, SchedulerLog, MedicineRequest, RefillRequest, MedicineReminder, SupportTicket, PatientFeedback, AuditLog
 } from './types';
 import { 
   INITIAL_MEDICINES, INITIAL_INVENTORY, INITIAL_SALES, 
   INITIAL_SUPPLIERS, INITIAL_CUSTOMERS, INITIAL_PRESCRIPTIONS, 
   INITIAL_NOTIFICATIONS, INITIAL_SCHEDULER_LOGS 
 } from './data/seedData';
-import { api, fetchState } from './services/api';
+import { api, fetchState, UserAccount } from './services/api';
 
 // Modular view panels
 import DashboardView from './components/DashboardView';
@@ -30,20 +30,33 @@ import ProfitView from './components/ProfitView';
 import LoginView from './components/LoginView';
 import LockScreen from './components/LockScreen';
 import PredictionView from './components/PredictionView';
+import PatientPortalView from './components/PatientPortalView';
+import ManagerToolsView from './components/ManagerToolsView';
+import RxDeskView from './components/RxDeskView';
+import AdminToolsView from './components/AdminToolsView';
+import ProfileView from './components/ProfileView';
 
 // Nav icons
 import { 
   LayoutDashboard, Package, ShoppingCart, Truck, 
   Users, FileText, Search, FileBarChart2, ShieldAlert,
   ChevronLeft, ChevronRight, Menu, LogIn, LogOut, TrendingUp,
-  Calendar, RotateCcw, Sparkles, Lock, X
+  Calendar, RotateCcw, Sparkles, Lock, X, User, Bell as BellIcon, ClipboardList, Activity as ActivityIcon, Settings as SettingsIcon, CircleUserRound
 } from 'lucide-react';
+
+const ROLE_ACCESS: Record<string, string[]> = {
+  Admin: ['dashboard', 'inventory', 'sales', 'profit', 'suppliers', 'customers', 'prescriptions', 'assistant', 'prediction', 'reports', 'scheduler', 'admin-users', 'admin-roles', 'admin-audit', 'admin-health', 'admin-settings', 'admin-profile'],
+  Pharmacist: ['dashboard', 'sales', 'customers', 'prescriptions', 'assistant', 'inventory', 'rx-requests', 'rx-refills', 'rx-medicine-search', 'rx-notifications', 'rx-reports', 'rx-profile'],
+  Manager: ['dashboard', 'inventory', 'profit', 'suppliers', 'reports', 'prediction', 'customers', 'prescriptions', 'scheduler', 'manager-analytics', 'reorder', 'manager-notifications', 'scheduler-status', 'manager-profile'],
+  Patient: ['assistant', 'patient-portal']
+};
 
 export default function App() {
   // Main Tab controller
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Authentication & Session Guard States
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -55,14 +68,25 @@ export default function App() {
   const [userRole, setUserRole] = useState<string>(() => {
     return localStorage.getItem('pharmasense_user_role') || 'Admin';
   });
+  const [profileDetails, setProfileDetails] = useState<Partial<UserAccount>>({});
 
-  const handleLoginSuccess = (email: string, role: string) => {
+  const allowedTabs = ROLE_ACCESS[userRole] || ROLE_ACCESS.Admin;
+  const navigateToAllowedTab = (tab: string) => {
+    if (allowedTabs.includes(tab)) setActiveTab(tab);
+  };
+
+  useEffect(() => {
+    if (!allowedTabs.includes(activeTab)) setActiveTab(allowedTabs[0]);
+  }, [userRole, activeTab, allowedTabs]);
+
+  const handleLoginSuccess = (email: string, role: string, details?: Partial<UserAccount>) => {
     localStorage.setItem('pharmasense_logged_in', 'true');
     localStorage.setItem('pharmasense_user_email', email);
     localStorage.setItem('pharmasense_user_role', role);
     setIsLoggedIn(true);
     setUserEmail(email);
     setUserRole(role);
+    setProfileDetails(details || {});
   };
 
   const handleLogout = () => {
@@ -71,6 +95,14 @@ export default function App() {
     localStorage.removeItem('pharmasense_user_role');
     setIsLoggedIn(false);
     setIsLocked(false);
+  };
+
+  const handleProfileSave = (details: Partial<UserAccount>) => {
+    const updatedUser = { ...(currentUser || { email: userEmail, name: userEmail, role: userRole, passwordHash: '' }), ...details };
+    setProfileDetails(details);
+    setUsers(prev => prev.some(user => user.email.toLowerCase() === userEmail.toLowerCase())
+      ? prev.map(user => user.email.toLowerCase() === userEmail.toLowerCase() ? { ...user, ...details } : user)
+      : [...prev, updatedUser]);
   };
 
   // Automated Secure Terminal Locking
@@ -127,6 +159,23 @@ export default function App() {
     const val = localStorage.getItem('pharmasense_scheduler_logs');
     return val ? JSON.parse(val) : [];
   });
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    const value = localStorage.getItem('pharmasense_users');
+    return value ? JSON.parse(value) : [];
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    const value = localStorage.getItem('pharmasense_audit_logs');
+    return value ? JSON.parse(value) : [];
+  });
+  const currentUser = users.find(user => user.email.toLowerCase() === userEmail.toLowerCase());
+  const profileUser = { ...currentUser, ...profileDetails };
+  const currentCustomer = customers.find(customer => customer.email?.toLowerCase() === userEmail.toLowerCase());
+  const profileTab = userRole === 'Admin' ? 'admin-profile' : userRole === 'Manager' ? 'manager-profile' : userRole === 'Pharmacist' ? 'rx-profile' : 'patient-portal';
+  const [medicineRequests, setMedicineRequests] = useState<MedicineRequest[]>([]);
+  const [refillRequests, setRefillRequests] = useState<RefillRequest[]>([]);
+  const [reminders, setReminders] = useState<MedicineReminder[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const [feedback, setFeedback] = useState<PatientFeedback[]>([]);
 
   // Backend Integration: connection status + guard flag so we don't push
   // locally-cached (localStorage) data back up to the API before we've had
@@ -151,6 +200,13 @@ export default function App() {
         setPrescriptions(state.prescriptions);
         setNotifications(state.notifications);
         setSchedulerLogs(state.schedulerLogs);
+        setUsers(state.users || []);
+        setAuditLogs(state.auditLogs || []);
+        setMedicineRequests(state.medicineRequests || []);
+        setRefillRequests(state.refillRequests || []);
+        setReminders(state.reminders || []);
+        setSupportTickets(state.supportTickets || []);
+        setFeedback(state.feedback || []);
         setBackendStatus('online');
       })
       .catch((err) => {
@@ -223,6 +279,14 @@ export default function App() {
       api.saveSchedulerLogs(schedulerLogs).catch((err) => console.warn('Failed to sync scheduler logs to backend:', err.message));
     }
   }, [schedulerLogs]);
+
+  useEffect(() => { if (hasHydratedFromBackend.current) api.saveMedicineRequests(medicineRequests).catch(() => {}); }, [medicineRequests]);
+  useEffect(() => { if (hasHydratedFromBackend.current) api.saveRefillRequests(refillRequests).catch(() => {}); }, [refillRequests]);
+  useEffect(() => { if (hasHydratedFromBackend.current) api.saveReminders(reminders).catch(() => {}); }, [reminders]);
+  useEffect(() => { if (hasHydratedFromBackend.current) api.saveSupportTickets(supportTickets).catch(() => {}); }, [supportTickets]);
+  useEffect(() => { if (hasHydratedFromBackend.current) api.saveFeedback(feedback).catch(() => {}); }, [feedback]);
+  useEffect(() => { localStorage.setItem('pharmasense_users', JSON.stringify(users)); if (hasHydratedFromBackend.current) api.saveUsers(users).catch(() => {}); }, [users]);
+  useEffect(() => { localStorage.setItem('pharmasense_audit_logs', JSON.stringify(auditLogs)); if (hasHydratedFromBackend.current) api.saveAuditLogs(auditLogs).catch(() => {}); }, [auditLogs]);
 
   // Database State resetting and Demo seeding functions
   const handleResetAllData = () => {
@@ -431,6 +495,71 @@ export default function App() {
     setCustomers([...customers, formattedCust]);
   };
 
+  const handlePatientPrescriptionSubmit = (prescription: Omit<Prescription, 'id' | 'status'>, patientEmail: string, customerId?: string) => {
+    const newPrescription: Prescription = {
+      ...prescription,
+      patientEmail,
+      id: `PRX-PATIENT-${Date.now()}`,
+      status: 'Pending'
+    };
+    setPrescriptions(prev => [newPrescription, ...prev]);
+    setNotifications(prev => [{
+      id: `NOT-PATIENT-${Date.now()}`,
+      type: 'prescription',
+      title: 'Prescription submitted',
+      message: 'Your prescription was submitted and is waiting for pharmacy review.',
+      date: currentSystemDate,
+      isRead: false,
+      severity: 'info',
+      patientEmail,
+      customerId
+    }, ...prev]);
+  };
+
+  const addMedicineRequest = (request: Omit<MedicineRequest, 'id' | 'createdAt' | 'status'>) => setMedicineRequests(prev => [{ ...request, id: `REQ-${Date.now()}`, createdAt: currentSystemDate, status: 'Pending' }, ...prev]);
+  const addRefillRequest = (request: Omit<RefillRequest, 'id' | 'createdAt' | 'status'>) => setRefillRequests(prev => [{ ...request, id: `REF-${Date.now()}`, createdAt: currentSystemDate, status: 'Pending' }, ...prev]);
+  const addReminder = (reminder: Omit<MedicineReminder, 'id'>) => setReminders(prev => [{ ...reminder, id: `REM-${Date.now()}` }, ...prev]);
+  const updateReminder = (id: string, enabled: boolean) => setReminders(prev => prev.map(reminder => reminder.id === id ? { ...reminder, enabled } : reminder));
+  const addSupportTicket = (ticket: Omit<SupportTicket, 'id' | 'createdAt' | 'status'>) => setSupportTickets(prev => [{ ...ticket, id: `SUP-${Date.now()}`, createdAt: currentSystemDate, status: 'Open' }, ...prev]);
+  const addFeedback = (entry: Omit<PatientFeedback, 'id' | 'createdAt'>) => setFeedback(prev => [{ ...entry, id: `FDB-${Date.now()}`, createdAt: currentSystemDate }, ...prev]);
+
+  const addAuditLog = (action: string, module: string, description: string, result: AuditLog['result'] = 'Success') => setAuditLogs(prev => [{ id: `AUD-${Date.now()}`, userEmail, role: userRole, action, module, description, result, timestamp: new Date().toISOString() }, ...prev]);
+  const addAdminUser = (user: UserAccount) => {
+    if (users.some(existing => existing.email.toLowerCase() === user.email.toLowerCase())) return;
+    setUsers(prev => [...prev, user]);
+    addAuditLog('User created', 'User Management', `Created ${user.role} account for ${user.email}`);
+  };
+  const changeUserRole = (email: string, role: string) => {
+    const target = users.find(user => user.email === email);
+    if (!target || (target.role === 'Admin' && role !== 'Admin' && users.filter(user => user.role === 'Admin' && user.active !== false).length <= 1)) return;
+    setUsers(prev => prev.map(user => user.email === email ? { ...user, role } : user));
+    addAuditLog('Role changed', 'User Management', `${email}: ${target.role} -> ${role}`);
+  };
+  const toggleUserActive = (email: string) => {
+    const target = users.find(user => user.email === email);
+    if (!target || (target.role === 'Admin' && target.active !== false && users.filter(user => user.role === 'Admin' && user.active !== false).length <= 1)) return;
+    setUsers(prev => prev.map(user => user.email === email ? { ...user, active: user.active === false } : user));
+    addAuditLog(target.active === false ? 'User activated' : 'User deactivated', 'User Management', email);
+  };
+
+  const updateMedicineRequest = (id: string, status: MedicineRequest['status']) => {
+    setMedicineRequests(prev => prev.map(request => request.id === id ? { ...request, status } : request));
+    const request = medicineRequests.find(item => item.id === id);
+    if (request) setNotifications(prev => [{ id: `NOT-RX-${Date.now()}`, type: 'prescription', title: 'Medicine request updated', message: `Your medicine request is now ${status}.`, date: currentSystemDate, isRead: false, severity: 'info', patientEmail: request.patientEmail, medicineIds: [request.medicineId] }, ...prev]);
+  };
+
+  const updateRefillRequest = (id: string, status: RefillRequest['status']) => {
+    setRefillRequests(prev => prev.map(request => request.id === id ? { ...request, status } : request));
+    const request = refillRequests.find(item => item.id === id);
+    if (request) setNotifications(prev => [{ id: `NOT-RX-${Date.now()}`, type: 'prescription', title: 'Refill request updated', message: `Your refill request is now ${status}.`, date: currentSystemDate, isRead: false, severity: 'info', patientEmail: request.patientEmail, medicineIds: [request.medicineId] }, ...prev]);
+  };
+
+  const updatePrescriptionStatus = (id: string, status: Prescription['status'], note = '') => {
+    setPrescriptions(prev => prev.map(prescription => prescription.id === id ? { ...prescription, status } : prescription));
+    const prescription = prescriptions.find(item => item.id === id);
+    if (prescription?.patientEmail) setNotifications(prev => [{ id: `NOT-RX-${Date.now()}`, type: 'prescription', title: `Prescription ${status}`, message: note || `Your prescription is now ${status}.`, date: currentSystemDate, isRead: false, severity: status === 'Rejected' ? 'warning' : 'info', patientEmail: prescription.patientEmail }, ...prev]);
+  };
+
   // 7. Dispense Prescription & auto-populate POS
   const handleDispensePrescription = (prescriptionId: string, itemsToCart: Array<{ medicine: MedicineMaster; batch: InventoryItem; quantity: number }>) => {
     // Mark prescription as Dispensed
@@ -464,7 +593,8 @@ export default function App() {
       message: `Successfully filled and billed Prescription ${prescriptionId}. Active stock counts adjusted.`,
       date: currentSystemDate,
       isRead: false,
-      severity: 'info'
+      severity: 'info',
+      patientEmail: prescriptions.find((prescription) => prescription.id === prescriptionId)?.patientEmail
     };
     setNotifications([newNoti, ...notifications]);
   };
@@ -545,9 +675,41 @@ export default function App() {
   };
 
   // Navigation map
+  const adminToolProps = {
+    userEmail,
+    users,
+    medicines,
+    inventory,
+    sales,
+    customers,
+    prescriptions,
+    medicineRequests,
+    notifications,
+    schedulerLogs,
+    auditLogs,
+    onAddUser: addAdminUser,
+    onChangeRole: changeUserRole,
+    onToggleUser: toggleUserActive
+  };
+
+  const managerToolProps = {
+    userEmail,
+    medicines,
+    inventory,
+    sales,
+    suppliers,
+    prescriptions,
+    notifications,
+    schedulerLogs,
+    medicineRequests
+  };
+
   const renderActiveView = () => {
     switch (activeTab) {
       case 'dashboard':
+        if (userRole === 'Admin') return <AdminToolsView mode="dashboard" {...adminToolProps} />;
+        if (userRole === 'Manager') return <ManagerToolsView mode="dashboard" {...managerToolProps} />;
+        if (userRole === 'Pharmacist') return <RxDeskView mode="dashboard" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
         return (
           <DashboardView 
             medicines={medicines}
@@ -557,7 +719,7 @@ export default function App() {
             notifications={notifications}
             onMarkNotificationAsRead={handleMarkNotificationAsRead}
             onClearAllNotifications={handleClearAllNotifications}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={navigateToAllowedTab}
             currentSystemDate={currentSystemDate}
           />
         );
@@ -567,6 +729,7 @@ export default function App() {
             medicines={medicines}
             inventory={inventory}
             suppliers={suppliers}
+            readOnly={userRole === 'Pharmacist'}
             onAddMedicine={handleAddMedicine}
             onAddInventoryBatch={handleAddInventoryBatch}
             onRemoveBatch={handleRemoveBatch}
@@ -581,7 +744,7 @@ export default function App() {
             sales={sales}
             customers={customers}
             onRecordSale={handleRecordSale}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={navigateToAllowedTab}
             currentSystemDate={currentSystemDate}
           />
         );
@@ -615,21 +778,61 @@ export default function App() {
           />
         );
       case 'prescriptions':
+        if (userRole === 'Manager') return <ManagerToolsView mode="prescription-overview" {...managerToolProps} />;
         return (
           <PrescriptionView 
             prescriptions={prescriptions}
             medicines={medicines}
             inventory={inventory}
             onDispensePrescription={handleDispensePrescription}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={navigateToAllowedTab}
+            onUpdateStatus={updatePrescriptionStatus}
           />
         );
+      case 'rx-requests':
+        return <RxDeskView mode="requests" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
+      case 'rx-refills':
+        return <RxDeskView mode="refills" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
+      case 'rx-medicine-search':
+        return <RxDeskView mode="medicine-search" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
+      case 'rx-notifications':
+        return <RxDeskView mode="notifications" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
+      case 'rx-reports':
+        return <RxDeskView mode="reports" userEmail={userEmail} customers={customers} medicines={medicines} inventory={inventory} sales={sales} prescriptions={prescriptions} medicineRequests={medicineRequests} refillRequests={refillRequests} notifications={notifications} onUpdateMedicineRequest={updateMedicineRequest} onUpdateRefillRequest={updateRefillRequest} />;
+      case 'rx-profile':
+        return <ProfileView user={profileUser as UserAccount} onSave={handleProfileSave} />;
       case 'assistant':
         return (
           <PharmacyAssistantView 
             medicines={medicines}
             inventory={inventory}
             suppliers={suppliers}
+            role={userRole}
+            patientMode={userRole === 'Patient'}
+          />
+        );
+      case 'patient-portal':
+        return (
+          <PatientPortalView
+            email={userEmail}
+            customers={customers}
+            sales={sales}
+            medicines={medicines}
+            prescriptions={prescriptions}
+            notifications={notifications}
+            onSubmitPrescription={handlePatientPrescriptionSubmit}
+            medicineRequests={medicineRequests}
+            refillRequests={refillRequests}
+            reminders={reminders}
+            supportTickets={supportTickets}
+            onAddMedicineRequest={addMedicineRequest}
+            onAddRefillRequest={addRefillRequest}
+            onAddReminder={addReminder}
+            onUpdateReminder={updateReminder}
+            onAddSupportTicket={addSupportTicket}
+            onAddFeedback={addFeedback}
+            profileUser={profileUser as UserAccount}
+            onSaveProfile={handleProfileSave}
           />
         );
       case 'prediction':
@@ -654,6 +857,7 @@ export default function App() {
           />
         );
       case 'scheduler':
+        if (userRole === 'Manager') return <ManagerToolsView mode="scheduler-status" {...managerToolProps} />;
         return (
           <SchedulerSimulator 
             logs={schedulerLogs}
@@ -661,25 +865,68 @@ export default function App() {
             currentSystemDate={currentSystemDate}
           />
         );
+      case 'manager-analytics':
+        return <ManagerToolsView mode="analytics" {...managerToolProps} />;
+      case 'reorder':
+        return <ManagerToolsView mode="reorder" {...managerToolProps} />;
+      case 'manager-notifications':
+        return <ManagerToolsView mode="notifications" {...managerToolProps} />;
+      case 'scheduler-status':
+        return <ManagerToolsView mode="scheduler-status" {...managerToolProps} />;
+      case 'manager-profile':
+        return <ProfileView user={profileUser as UserAccount} onSave={handleProfileSave} />;
+      case 'admin-users':
+        return <AdminToolsView mode="users" {...adminToolProps} />;
+      case 'admin-roles':
+        return <AdminToolsView mode="roles" {...adminToolProps} />;
+      case 'admin-audit':
+        return <AdminToolsView mode="audit" {...adminToolProps} />;
+      case 'admin-health':
+        return <AdminToolsView mode="health" {...adminToolProps} />;
+      case 'admin-settings':
+        return <AdminToolsView mode="settings" {...adminToolProps} />;
+      case 'admin-profile':
+        return <ProfileView user={profileUser as UserAccount} onSave={handleProfileSave} />;
       default:
         return <div className="text-center py-12 text-slate-400">View not constructed yet.</div>;
     }
   };
 
+  if (!allowedTabs.includes(activeTab)) {
+    return null;
+  }
+
   // Nav menu helper
   const NAV_ITEMS = [
-    { id: 'dashboard', label: 'Operations Dashboard', icon: LayoutDashboard },
-    { id: 'inventory', label: 'Smart Inventory', icon: Package },
-    { id: 'sales', label: 'POS Billing Register', icon: ShoppingCart },
-    { id: 'profit', label: 'Profit Analysis & Expiries', icon: TrendingUp },
+    { id: 'dashboard', label: userRole === 'Admin' ? 'Admin Dashboard' : userRole === 'Manager' ? 'Manager Dashboard' : userRole === 'Pharmacist' ? 'RX Desk Dashboard' : 'Operations Dashboard', icon: LayoutDashboard },
+    { id: 'inventory', label: userRole === 'Pharmacist' ? 'Limited inventory viewing' : 'Smart Inventory', icon: Package },
+    { id: 'sales', label: userRole === 'Admin' ? 'Billing' : 'POS Billing', icon: ShoppingCart },
+    { id: 'profit', label: userRole === 'Admin' ? 'Profit & expiry' : 'Profit Analysis & Expiries', icon: TrendingUp },
     { id: 'suppliers', label: 'Supplier Hub', icon: Truck },
-    { id: 'customers', label: 'Patient Directory', icon: Users },
-    { id: 'prescriptions', label: 'Prescription Desk', icon: FileText },
+    { id: 'customers', label: userRole === 'Admin' ? 'Patients' : 'Patient Directory', icon: Users },
+    { id: 'prescriptions', label: userRole === 'Admin' ? 'Prescriptions' : userRole === 'Manager' ? 'Prescription Overview' : 'Prescription Desk', icon: FileText },
     { id: 'assistant', label: 'Pharmacy Assistant', icon: Search },
-    { id: 'prediction', label: 'AI Medicine Demand Prediction', icon: Sparkles },
-    { id: 'reports', label: 'Spreadsheets & Reports', icon: FileBarChart2 },
-    { id: 'scheduler', label: 'Scheduler Daemon', icon: ShieldAlert },
-  ];
+    { id: 'prediction', label: userRole === 'Admin' ? 'AI Demand Prediction' : 'AI Medicine Demand Prediction', icon: Sparkles },
+    { id: 'reports', label: userRole === 'Admin' ? 'Reports' : 'Reports & Spreadsheets', icon: FileBarChart2 },
+    { id: 'scheduler', label: userRole === 'Admin' ? 'Scheduler' : userRole === 'Manager' ? 'Scheduler Status' : 'Scheduler status only', icon: ShieldAlert },
+    { id: 'manager-analytics', label: 'Sales Analytics', icon: TrendingUp },
+    { id: 'reorder', label: 'Reorder Recommendations', icon: Package },
+    { id: 'manager-notifications', label: 'Notifications', icon: BellIcon },
+    { id: 'manager-profile', label: 'Manager Profile', icon: User },
+    { id: 'patient-portal', label: 'My prescriptions & billing', icon: User },
+    { id: 'rx-requests', label: 'Medicine Requests', icon: Package },
+    { id: 'rx-refills', label: 'Refill Requests', icon: ClipboardList },
+    { id: 'rx-medicine-search', label: 'Medicine Search', icon: Search },
+    { id: 'rx-notifications', label: 'Notifications', icon: BellIcon },
+    { id: 'rx-reports', label: 'RX Desk Reports', icon: FileBarChart2 },
+    { id: 'rx-profile', label: 'My Profile', icon: User },
+    { id: 'admin-users', label: 'User Management', icon: Users },
+    { id: 'admin-roles', label: 'Roles & Permissions', icon: ShieldAlert },
+    { id: 'admin-audit', label: 'Audit Logs', icon: FileText },
+    { id: 'admin-health', label: 'System Health', icon: ActivityIcon },
+    { id: 'admin-settings', label: 'System Settings', icon: SettingsIcon },
+    { id: 'admin-profile', label: 'Admin Profile', icon: User },
+  ].filter((item) => allowedTabs.includes(item.id));
 
   if (!isLoggedIn) {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
@@ -698,7 +945,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mobile Top Header Bar (Android / Phone screens) */}
-      <header className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between z-30 sticky top-0 shadow-md">
+      <header className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between z-30 sticky top-0 shadow-md relative">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileMenuOpen(true)}
@@ -731,16 +978,40 @@ export default function App() {
           >
             <Lock className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => setProfileMenuOpen(open => !open)}
+            className="h-9 w-9 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs border border-teal-400/40"
+            title="Open user profile"
+          >
+            {profileUser.photoUrl ? <img src={profileUser.photoUrl} alt="Profile" className="h-full w-full rounded-full object-cover" /> : (profileUser.name || userEmail).slice(0, 2).toUpperCase()}
+          </button>
 
           {notifications.filter(n => !n.isRead).length > 0 && (
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => navigateToAllowedTab('dashboard')}
               className="px-2.5 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full font-mono text-[10px] font-bold animate-pulse flex items-center gap-1 cursor-pointer"
             >
               ⚠️ {notifications.filter(n => !n.isRead).length}
             </button>
           )}
         </div>
+        {profileMenuOpen && (
+          <div className="absolute right-4 top-16 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50">
+            <p className="font-bold text-slate-800 truncate">{profileUser.name || 'User account'}</p>
+            <p className="text-xs text-slate-400 truncate mt-1">{userEmail}</p>
+            <div className="grid grid-cols-2 gap-3 py-3 mt-3 border-y border-slate-100 text-xs">
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Role</span><p className="font-bold text-slate-700 mt-1">{userRole}</p></div>
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Status</span><p className="font-bold text-emerald-600 mt-1">{profileUser.active === false ? 'Inactive' : 'Active'}</p></div>
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Phone</span><p className="font-bold text-slate-700 mt-1">{profileUser.phone || currentCustomer?.contactNumber || 'Not provided'}</p></div>
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Modules</span><p className="font-bold text-slate-700 mt-1">{allowedTabs.length}</p></div>
+              <div className="col-span-2"><span className="text-[9px] uppercase text-slate-400 font-bold">Address</span><p className="font-bold text-slate-700 mt-1 truncate">{profileUser.address || 'Not provided'}</p></div>
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Date of birth</span><p className="font-bold text-slate-700 mt-1">{profileUser.dateOfBirth || 'Not provided'}</p></div>
+              <div><span className="text-[9px] uppercase text-slate-400 font-bold">Employee ID</span><p className="font-bold text-slate-700 mt-1">{profileUser.employeeId || 'Not applicable'}</p></div>
+            </div>
+            <button onClick={() => { navigateToAllowedTab(profileTab); setProfileMenuOpen(false); }} className="w-full mt-3 px-3 py-2 rounded-lg bg-teal-600 text-white text-xs font-bold">Open profile</button>
+            <button onClick={handleLogout} className="w-full mt-2 px-3 py-2 rounded-lg bg-rose-50 text-rose-600 text-xs font-bold">Sign out</button>
+          </div>
+        )}
       </header>
 
       {/* Mobile Slide-over Drawer Menu */}
@@ -798,7 +1069,7 @@ export default function App() {
                       <button
                         key={item.id}
                         onClick={() => {
-                          setActiveTab(item.id);
+                          navigateToAllowedTab(item.id);
                           setMobileMenuOpen(false);
                         }}
                         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-xs font-semibold ${
@@ -904,7 +1175,7 @@ export default function App() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => navigateToAllowedTab(item.id)}
                   className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl transition-all text-xs font-semibold cursor-pointer ${
                     isActive ? 
                     'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 
@@ -1028,23 +1299,43 @@ export default function App() {
 
             {notifications.filter(n => !n.isRead).length > 0 && (
               <span 
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => navigateToAllowedTab('dashboard')}
                 className="animate-pulse bg-rose-50 text-rose-600 border border-rose-100 font-bold px-3.5 py-1.5 rounded-full cursor-pointer flex items-center gap-1"
               >
                 ⚠️ {notifications.filter(n => !n.isRead).length} Warnings
               </span>
             )}
-            <span className="text-slate-500 font-semibold bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-lg flex items-center gap-2">
-              <span>Operator: {userEmail} ({userRole})</span>
-              <button
-                onClick={handleLogout}
-                title="Sign Out / Switch Operator Account"
-                className="ml-1 text-[10px] font-mono font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded cursor-pointer transition-colors flex items-center gap-1 uppercase"
-              >
-                <LogOut className="h-3 w-3" />
-                Sign Out
-              </button>
-            </span>
+              <div className="relative">
+                <button
+                  onClick={() => setProfileMenuOpen(open => !open)}
+                  title="Open user profile"
+                  aria-label="Open user profile"
+                  className="h-9 w-9 flex items-center justify-center bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-200 rounded-full cursor-pointer transition-colors"
+                >
+                  <CircleUserRound className="h-5 w-5 text-teal-600" />
+                </button>
+                {profileMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50">
+                    <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                      <span className="h-11 w-11 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold overflow-hidden">{profileUser.photoUrl ? <img src={profileUser.photoUrl} alt="Profile" className="h-full w-full object-cover" /> : (profileUser.name || userEmail).slice(0, 2).toUpperCase()}</span>
+                      <div className="min-w-0"><p className="font-bold text-slate-800 truncate">{profileUser.name || 'User account'}</p><p className="text-xs text-slate-400 truncate">{userEmail}</p></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 py-3 text-xs">
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Role</span><p className="font-bold text-slate-700 mt-1">{userRole}</p></div>
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Status</span><p className="font-bold text-emerald-600 mt-1">{profileUser.active === false ? 'Inactive' : 'Active'}</p></div>
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Phone</span><p className="font-bold text-slate-700 mt-1">{profileUser.phone || currentCustomer?.contactNumber || 'Not provided'}</p></div>
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Access</span><p className="font-bold text-slate-700 mt-1">{allowedTabs.length} modules</p></div>
+                      <div className="col-span-2"><span className="text-[9px] uppercase text-slate-400 font-bold">Address</span><p className="font-bold text-slate-700 mt-1 truncate">{profileUser.address || 'Not provided'}</p></div>
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Date of birth</span><p className="font-bold text-slate-700 mt-1">{profileUser.dateOfBirth || 'Not provided'}</p></div>
+                      <div><span className="text-[9px] uppercase text-slate-400 font-bold">Employee ID</span><p className="font-bold text-slate-700 mt-1">{profileUser.employeeId || 'Not applicable'}</p></div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { navigateToAllowedTab(profileTab); setProfileMenuOpen(false); }} className="flex-1 px-3 py-2 rounded-lg bg-teal-600 text-white text-xs font-bold">Open profile</button>
+                      <button onClick={handleLogout} className="px-3 py-2 rounded-lg bg-rose-50 text-rose-600 text-xs font-bold">Sign out</button>
+                    </div>
+                  </div>
+                )}
+              </div>
           </div>
         </header>
 
@@ -1056,45 +1347,21 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Bar (Android Touch App Experience) */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 border-t border-slate-800 px-2 py-1.5 flex justify-around items-center text-slate-400 backdrop-blur-md shadow-2xl">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
-            activeTab === 'dashboard' ? 'text-teal-400 font-bold' : 'hover:text-slate-200'
-          }`}
-        >
-          <LayoutDashboard className="h-5 w-5" />
-          <span className="text-[9px] font-mono tracking-tight">Overview</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
-            activeTab === 'inventory' ? 'text-teal-400 font-bold' : 'hover:text-slate-200'
-          }`}
-        >
-          <Package className="h-5 w-5" />
-          <span className="text-[9px] font-mono tracking-tight">Stock</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
-            activeTab === 'sales' ? 'text-teal-400 font-bold' : 'hover:text-slate-200'
-          }`}
-        >
-          <ShoppingCart className="h-5 w-5" />
-          <span className="text-[9px] font-mono tracking-tight">POS</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('prediction')}
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all relative ${
-            activeTab === 'prediction' ? 'text-teal-400 font-bold' : 'hover:text-slate-200'
-          }`}
-        >
-          <Sparkles className="h-5 w-5 text-teal-400" />
-          <span className="text-[9px] font-mono tracking-tight">AI Predict</span>
-        </button>
+        {NAV_ITEMS.slice(0, 4).map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => navigateToAllowedTab(item.id)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+                activeTab === item.id ? 'text-teal-400 font-bold' : 'hover:text-slate-200'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="text-[9px] font-mono tracking-tight max-w-20 truncate">{item.label}</span>
+            </button>
+          );
+        })}
 
         <button
           onClick={() => setMobileMenuOpen(true)}
