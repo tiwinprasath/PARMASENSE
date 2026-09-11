@@ -1,405 +1,658 @@
-# 💊 PharmaSense
+PharmaSense 💊🏥
 
-### AI-Powered Pharmacy Management & Medicine Intelligence Platform
+> Smart Pharmacy Management System with AI-Powered Medicine Demand Prediction
 
-**PharmaSense** is an intelligent pharmacy management platform designed to simplify medicine inventory management, sales, billing, medicine identification, and AI-assisted decision-making.
 
-The platform combines **pharmacy management features with Artificial Intelligence** to help pharmacies manage medicines efficiently, reduce stock-related problems, identify medicines quickly, and make better inventory decisions.
+
+PharmaSense is a modern pharmacy management system designed to simplify pharmacy operations, improve medicine inventory management, streamline prescription processing, and provide intelligent insights using AI.
+
+The system provides separate role-based interfaces for Admin, Manager, RX Desk, and Patient, ensuring that every user can access only the features relevant to their responsibilities.
+
 
 ---
 
-## 🚀 Key Features
+🚀 Key Features
 
-### 📊 Pharmacy Dashboard
+👨‍💼 Admin
 
-* Overview of pharmacy operations
-* Total medicines and available stock
-* Sales and inventory statistics
-* Low-stock monitoring
-* Expiry monitoring
-* Quick access to important pharmacy modules
+Complete system administration
 
-### 💊 Medicine Inventory Management
+User management
 
-* Add and manage medicines
-* Store medicine details in the database
-* Track available quantities
-* Monitor medicine prices
-* Manage expiry dates
-* Identify low-stock medicines
+Role & permission management
 
-### 📷 Medicine Scanner
+Medicine master management
 
-* Scan medicine barcodes
-* Retrieve medicine information
-* Connect scanned medicines with the medicine database
-* Reduce manual data entry
+Inventory oversight
 
-### 🤖 AI Medicine Demand Prediction
+Supplier management
 
-PharmaSense can use historical sales information to support medicine demand prediction.
+Patient management
 
-The AI module can help predict:
+Prescription oversight
 
-* Future medicine demand
-* High-demand medicines
-* Low-demand medicines
-* Recommended reorder quantities
-* Prediction confidence
+Billing & transaction monitoring
 
-Prediction periods can include:
+Reports & analytics
 
-* **7 days**
-* **15 days**
-* **30 days**
+AI demand prediction monitoring
 
-### 📈 Sales Management
+Scheduler management
 
-* Record medicine sales
-* Track sales history
-* Manage customer purchases
-* Generate sales information
-* Use historical sales data for demand analysis
+Notifications
 
-### 🧾 Billing
+Audit logs
 
-* Create medicine bills
-* Calculate purchase totals
-* Maintain billing records
-* Simplify pharmacy transactions
+System health monitoring
 
-### 👨‍⚕️ Customer & Supplier Management
-
-* Store customer information
-* Manage supplier information
-* Track medicine suppliers
-* Maintain pharmacy-related records
-
-### ⚠️ Expiry & Stock Monitoring
-
-* Monitor medicine expiry dates
-* Identify medicines approaching expiry
-* Detect low-stock medicines
-* Help pharmacies reduce medicine wastage
-
-### 📑 Reports & Analytics
-
-* Sales reports
-* Inventory reports
-* Medicine demand information
-* Stock analysis
-* Pharmacy performance insights
-
----
-
-## 🎯 Problem Statement
-
-Pharmacies often face challenges such as:
-
-* Manual inventory management
-* Medicine stockouts
-* Overstocking
-* Medicine expiry
-* Difficulty identifying medicines
-* Lack of demand forecasting
-* Time-consuming billing and record management
-
-These problems can lead to financial losses, medicine wastage, and inefficient pharmacy operations.
-
-**PharmaSense addresses these challenges by combining pharmacy management with intelligent data-driven features.**
-
----
-
-## 💡 Solution
-
-PharmaSense provides a centralized platform where pharmacy owners and staff can:
-
-1. Manage medicines and inventory
-2. Scan and identify medicines
-3. Record sales and billing
-4. Manage customers and suppliers
-5. Monitor stock and expiry dates
-6. Analyze historical sales
-7. Predict future medicine demand
-8. Make better inventory decisions
-
----
-
-## 🏗️ System Architecture
+System settings
 
 
-                    ┌─────────────────────┐
-                    │       User          │
-                    │ Pharmacy Staff/User │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │     Frontend        │
-                    │ React + Tailwind CSS│
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │      Backend        │
-                    │     FastAPI         │
-                    └──────────┬──────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              │                │                │
-              ▼                ▼                ▼
-       ┌────────────┐   ┌─────────────┐   ┌────────────┐
-       │ PostgreSQL │   │ AI Module   │   │   Scanner  │
-       │  Database  │   │ Prediction  │   │   Module   │
-       └────────────┘   └─────────────┘   └────────────┘
-              │                │                │
-              └────────────────┼────────────────┘
-                               ▼
-                    ┌─────────────────────┐
-                    │ Pharmacy Insights   │
-                    │ Reports & Decisions │
-                    └─────────────────────┘
+📊 Manager
+
+Manager dashboard
+
+Smart inventory management
+
+Low-stock monitoring
+
+Medicine expiry tracking
+
+Supplier management
+
+Sales analytics
+
+Profit analysis
+
+Reorder recommendations
+
+AI medicine demand prediction
+
+Business reports
+
+Prescription statistics
+
+Inventory insights
+
+
+💊 RX Desk
+
+Prescription management
+
+Prescription verification
+
+Approve/reject prescriptions
+
+Patient directory
+
+Medicine search
+
+Medicine availability checking
+
+Medicine dispensing
+
+Medicine requests
+
+Refill requests
+
+POS billing
+
+Barcode/QR medicine scanning
+
+Patient notifications
+
+Pharmacy Assistant
+
+Operational reports
+
+
+👤 Patient
+
+Patient dashboard
+
+Medicine search
+
+AI Pharmacy Assistant
+
+My medicines
+
+My prescriptions
+
+Prescription upload
+
+Medicine requests
+
+Refill requests
+
+Medicine reminders
+
+Notifications
+
+Order/request tracking
+
+Bills & payment history
+
+Purchase history
+
+Pharmacy information
+
+Support
+
+Feedback & rating
+
+Profile management
+
+
 
 ---
 
-## 🛠️ Technology Stack
+🤖 AI-Powered Medicine Demand Prediction
 
-### Frontend
+PharmaSense includes a dedicated AI Medicine Demand Prediction module.
 
-* React.js
-* Tailwind CSS
-* JavaScript
-* Axios
-* Chart.js / Recharts
+The system analyzes historical medicine sales data and predicts future demand for:
 
-### Backend
+7 days
 
-* FastAPI
-* Python
-* SQLAlchemy
-* JWT Authentication
-* Role-Based Access Control
+15 days
 
-### Database
+30 days
 
-* PostgreSQL
 
-### AI / Machine Learning
+AI Output
 
-* Python
-* Machine Learning models
-* Historical sales analysis
-* Demand forecasting
+For each medicine, the system can provide:
 
-### Automation
+Medicine Name
+Current Stock
+Predicted Demand
+Recommended Reorder Quantity
+Demand Level
+Confidence Score
 
-* APScheduler / background scheduling
+Example:
 
-### Development Tools
+Medicine: Paracetamol
+Current Stock: 100
+Predicted 30-Day Demand: 180
+Recommended Reorder: 100
+Demand Level: HIGH
+Confidence: 91%
 
-* Git
-* GitHub
-* VS Code
-* Docker
+This helps pharmacy managers make better inventory and purchasing decisions.
+
+> AI predictions are decision-support information and do not automatically prescribe medicines or modify inventory without authorization.
+
+
+
 
 ---
 
-## 📂 Project Structure
+🧠 AI Pharmacy Assistant
 
+PharmaSense includes an AI-powered Pharmacy Assistant that helps users obtain general medicine-related information.
+
+Users can ask questions such as:
+
+What is this medicine used for?
+What are the general precautions?
+How should I understand this prescription?
+Is this medicine available?
+
+The assistant is designed for general educational and pharmacy assistance purposes and should not replace professional medical advice or independently prescribe medication.
+
+
+---
+
+📦 Smart Inventory Management
+
+PharmaSense helps pharmacies monitor medicine inventory in real time.
+
+Inventory Status
+
+🟢 In Stock
+
+🟡 Low Stock
+
+🔴 Out of Stock
+
+⚠️ Overstocked
+
+
+Expiry Monitoring
+
+Medicines can be classified as:
+
+Expired
+
+Expiring within 7 days
+
+Expiring within 30 days
+
+Expiring within 90 days
+
+Safe
+
+
+The system can generate alerts for medicines approaching expiry.
+
+Expired medicines should not be dispensed or sold.
+
+
+---
+
+📋 Prescription Management
+
+The prescription workflow is designed around the RX Desk:
+
+Patient Uploads Prescription
+          ↓
+      RX Desk Review
+          ↓
+   Prescription Verified
+       ↙         ↘
+   Approved     Rejected
+      ↓
+Medicine Prepared
+      ↓
+Ready for Pickup
+      ↓
+    Completed
+
+Every important prescription status change can be tracked for operational accountability.
+
+
+---
+
+🧾 Billing & POS
+
+The POS Billing system allows authorized pharmacy staff to:
+
+Search medicines
+
+Add medicines to bill
+
+Enter quantities
+
+Calculate totals
+
+Apply permitted discounts
+
+Select payment method
+
+Generate receipts
+
+Update inventory after successful transactions
+
+
+The system should validate:
+
+Stock availability
+
+Medicine expiry
+
+Prescription requirements
+
+
+
+---
+
+📱 Barcode / QR Scanning
+
+PharmaSense can integrate barcode/QR scanning to quickly identify medicines.
+
+After scanning, the system can retrieve information such as:
+
+Medicine name
+
+Generic name
+
+Batch number
+
+Stock
+
+Expiry date
+
+Price
+
+Prescription requirement
+
+
+This reduces manual data entry and speeds up pharmacy operations.
+
+
+---
+
+🔔 Notifications
+
+PharmaSense can generate notifications for:
+
+Low stock
+
+Medicine expiry
+
+Expired medicines
+
+Prescription approval/rejection
+
+Medicine requests
+
+Refill requests
+
+Medicine ready for pickup
+
+Supplier delays
+
+AI demand alerts
+
+
+Notifications can be prioritized as:
+
+CRITICAL
+HIGH
+MEDIUM
+INFO
+
+---
+
+🏗️ System Architecture
+
+PharmaSense
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+       Frontend       Backend        Database
+          │              │              │
+     React / UI       FastAPI       PostgreSQL
+          │              │              │
+          └──────────────┼──────────────┘
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+          AI Services          Scheduler
+              │                     │
+       Demand Prediction      Automated Jobs
+              │
+        Pharmacy Assistant
+
+
+---
+
+🔄 Pharmacy Workflow
+
+Patient
+   │
+   ├── Search Medicine
+   ├── Upload Prescription
+   ├── Request Medicine
+   └── Request Refill
+             │
+             ▼
+         RX Desk
+             │
+      Prescription Review
+             │
+             ▼
+       Medicine Dispensing
+             │
+             ▼
+           Billing
+             │
+             ▼
+        Inventory Update
+             │
+             ▼
+          Manager
+             │
+    ┌────────┴─────────┐
+    ▼                  ▼
+Inventory          AI Prediction
+Analysis              │
+    │                  ▼
+    └──────────► Reorder Recommendation
+
+             Admin
+                │
+        System Oversight
+
+
+---
+
+🛠️ Technology Stack
+
+The exact technologies should match the implementation in the project.
+
+Frontend
+
+React
+
+Tailwind CSS
+
+Axios
+
+Recharts / Chart.js
+
+
+Backend
+
+FastAPI
+
+Python
+
+SQLAlchemy
+
+JWT Authentication
+
+Role-Based Access Control
+
+
+Database
+
+PostgreSQL
+
+
+AI / Data Science
+
+Python
+
+Pandas
+
+Scikit-learn
+
+Random Forest / XGBoost where applicable
+
+
+Automation
+
+APScheduler / Celery
+
+
+Deployment
+
+Docker
+
+REST APIs
+
+
+
+---
+
+📂 Suggested Project Structure
 
 PharmaSense/
 │
 ├── frontend/
 │   ├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── services/
-│   └── ...
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── dashboards/
+│   │   ├── services/
+│   │   └── routes/
+│   │
+│   └── package.json
 │
 ├── backend/
 │   ├── app/
-│   ├── models/
-│   ├── routes/
-│   ├── services/
-│   ├── database/
-│   └── ...
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── auth/
+│   │   └── ai/
+│   │
+│   └── main.py
 │
-├── ai/
-│   ├── models/
-│   ├── datasets/
-│   ├── predictions/
-│   └── ...
+├── database/
+│   └── migrations/
 │
-├── scanner/
-│   └── ...
+├── ml/
+│   ├── training/
+│   └── prediction/
 │
-├── docs/
-│   └── ...
+├── scheduler/
 │
-├── requirements.txt
-├── README.md
-└── LICENSE
+├── docker-compose.yml
+└── README.md
 
-> Update the folder names above if your actual repository structure is different.
 
 ---
 
+🔐 Security
+
+PharmaSense should implement:
+
+JWT-based authentication
+
+Role-Based Access Control
+
+Secure password hashing
+
+Backend authorization
+
+Input validation
+
+File validation for prescriptions
+
+Patient data isolation
+
+Audit logging
+
+Protected APIs
+
+Prevention of privilege escalation
 
 
-Add any additional API keys required by your project.
+Frontend route hiding alone should not be considered sufficient security.
 
-## 🔐 Authentication
-
-PharmaSense supports secure user authentication using:
-
-* JWT authentication
-* Password protection
-* Role-based access control
-* Protected API endpoints
-
-> Never commit `.env` files, passwords, API keys, database credentials, or other secrets to GitHub.
 
 ---
 
-## 🤖 AI Demand Prediction Workflow
+📈 Benefits
 
-Historical Sales Data
-        │
-        ▼
-Data Preprocessing
-        │
-        ▼
-Feature Engineering
-        │
-        ▼
-Machine Learning Model
-        │
-        ▼
-Demand Prediction
-        │
-        ├── 7 Days
-        ├── 15 Days
-        └── 30 Days
-        │
-        ▼
-Demand Classification
-        │
-        ├── High Demand
-        └── Low Demand
-        │
-        ▼
-Recommended Reorder Quantity
-        │
-        ▼
-Pharmacy Inventory Decision
+For Pharmacy
 
----
+Reduces manual inventory work
 
-## 📊 Data Sources
+Improves expiry monitoring
 
-The AI module can use multiple factors to improve demand analysis:
+Reduces stock-out situations
 
-* Historical medicine sales
-* Medicine inventory data
-* Seasonal information
-* Public holidays
-* Weather information
-* Search/trend information
+Helps prevent expired medicine sales
 
-These factors can help identify changes in medicine demand and support better inventory planning.
+Simplifies prescription processing
 
----
+Improves billing efficiency
 
-## 🌟 Benefits
+Provides business analytics
 
-### For Pharmacy Staff
+Supports data-driven purchasing
 
-* Faster medicine management
-* Easier billing
-* Quick medicine identification
-* Reduced manual work
-* Better inventory visibility
 
-### For Pharmacy Owners
+For Managers
 
-* Improved stock management
-* Reduced stockouts
-* Reduced overstocking
-* Better expiry monitoring
-* Data-driven inventory decisions
-* Improved operational efficiency
+Better inventory visibility
 
-### For Customers
+AI-based demand insights
 
-* Faster service
-* Accurate medicine information
-* Reduced waiting time
-* Better availability of medicines
+Reorder recommendations
+
+Profit and sales analytics
+
+Supplier monitoring
+
+
+For RX Desk
+
+Faster prescription verification
+
+Easy medicine lookup
+
+Faster dispensing
+
+Integrated billing
+
+Patient request management
+
+
+For Patients
+
+Easy medicine search
+
+Prescription management
+
+Medicine reminders
+
+Refill requests
+
+Order tracking
+
+AI pharmacy assistance
+
+Access to personal pharmacy history
+
+
 
 ---
 
-## 🔮 Future Enhancements
+🎯 Project Objective
 
-Planned or potential future improvements include:
+PharmaSense aims to transform traditional pharmacy management into a smarter, more efficient, and user-friendly digital system by combining pharmacy automation, role-based access control, inventory intelligence, prescription management, and AI-powered demand prediction.
 
-* 📱 Android mobile application
-* 🧠 Advanced AI demand forecasting
-* 💬 AI pharmacy assistant
-* 📷 Improved medicine image recognition
-* 🔔 Automated stock and expiry notifications
-* ☁️ Cloud deployment
-* 📊 Advanced analytics dashboard
-* 🌐 Multi-pharmacy support
-* 📍 Nearby pharmacy availability
-* 🔄 Automated data synchronization
 
 ---
 
-## 🔒 Security
+🌟 Future Enhancements
 
-PharmaSense is designed with security considerations including:
+Mobile Android application
 
-* Authentication and authorization
-* Password protection
-* Role-based permissions
-* Secure API communication
-* Environment variables for sensitive configuration
-* Database access control
+Advanced medicine recommendation system
 
----
+Voice-enabled Pharmacy Assistant
 
-## 📜 License
+OCR-based prescription extraction
 
-This project is developed for educational, research, and project-development purposes.
+Advanced demand forecasting
 
-If you plan to publish PharmaSense as open source, add an appropriate license such as **MIT License** and include the corresponding `LICENSE` file.
+IoT-based inventory monitoring
 
----
+Digital payment integration
 
-## 👨‍💻 Developer
+Multi-branch pharmacy management
 
-**Tiwin Prasath**
+Cloud deployment
 
-B.Tech Artificial Intelligence & Data Science
+Advanced analytics
 
-Interested in:
+Automated supplier purchase orders
 
-* Artificial Intelligence
-* Machine Learning
-* Data Science
-* Software Development
-* Healthcare Technology
+
 
 ---
 
-## ⭐ Support
+👨‍💻 Project
 
-If you find **PharmaSense** useful, consider giving the repository a ⭐ on GitHub.
+PharmaSense — Smart Pharmacy Management System
 
-Your feedback and contributions are welcome!
+Built to make pharmacy operations smarter, faster, safer, and more efficient.
 
----
-
-### 💊 PharmaSense
-
-> **Smarter Pharmacy. Better Inventory. Intelligent Decisions.**
+> Manage Medicines. Predict Demand. Improve Pharmacy Care.
