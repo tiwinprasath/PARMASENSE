@@ -44,6 +44,46 @@ export interface AppState {
   users?: UserAccount[];
 }
 
+export interface BarcodeLookupResponse {
+  success: boolean;
+  matched: boolean;
+  code: string;
+  format: string;
+  confidence: number;
+  medicine: {
+    id: string | number;
+    name: string;
+    manufacturer: string;
+    composition: string;
+    price: number;
+    description: string;
+    barcode: string;
+    format: string;
+  } | null;
+  matches?: Array<{
+    id: string | number;
+    name: string;
+    manufacturer: string;
+    composition: string;
+    price: number;
+    description: string;
+    barcode: string;
+    format: string;
+  }>;
+  packageFields?: {
+    batch: string;
+    manufacturingDate: string;
+    expiryDate: string;
+  };
+  qrData?: {
+    isStructured: boolean;
+    isUrl: boolean;
+    displayValue: string;
+  } | null;
+  message?: string;
+  error?: string;
+}
+
 const API_BASE = '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -106,6 +146,129 @@ export const api = {
     request<{ success: boolean; message: string; user: UserAccount }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data)
+    }),
+  chatWithAssistant: (payload: { question: string; role?: string; patientMode?: boolean }) =>
+    request<{ answer: string; medicineFound: boolean; medicines?: any[] }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  searchMedicinesDataset: (query: string, limit = 10) =>
+    request<any[]>(`/medicines/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+  lookupBarcode: (payload: { code: string; format: string }) =>
+    request<BarcodeLookupResponse>('/scanner/barcode', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  identifyMedicine: (payload: {
+    text?: string;
+    image?: string;
+    photos?: string[];
+    textBySource?: {
+      front?: string;
+      back?: string;
+      side?: string;
+      'strip-front'?: string;
+      'strip-back'?: string;
+    };
+    ocrConfidence?: number;
+    ocrEvidence?: Array<{
+      source: string;
+      text: string;
+      confidence: number;
+      variant?: string;
+      orientation?: number;
+      words?: Array<{ text: string; confidence: number; bbox?: any }>;
+    }>;
+    barcode?: string;
+    existingMedicines?: any[];
+  }) =>
+    request<{
+      identified: boolean;
+      confidence: number;
+      matchType: string;
+      ocrConfidence?: number;
+      askVerification: boolean;
+      isAlreadyInFormulary: boolean;
+      existingFormularyId: string | null;
+      verificationWarnings?: string[];
+      vlmUsed?: boolean;
+      vlmFields?: string[];
+      ocrMethod?: 'Tesseract OCR' | 'Tesseract + Gemini Vision';
+      medicineFoundInDatabase?: boolean;
+      requiresVerification?: boolean;
+      candidates?: Array<{
+        id: number | string;
+        name: string;
+        score: number;
+        signals?: Record<string, number>;
+        manufacturer?: string;
+        composition?: string;
+        strength?: string;
+        type?: string;
+        pack_size_label?: string;
+        price?: number;
+      }>;
+      matchedMedicine: {
+        id: number | string;
+        name: string;
+        manufacturer?: string;
+        composition?: string;
+        price?: number;
+        type?: string;
+        pack_size_label?: string;
+        side_effects?: string;
+        description?: string;
+      } | null;
+      extractedFields: {
+        medicine_name: string;
+        brand_name?: string;
+        generic_name?: string;
+        strength: string;
+        dosage_form: string;
+        manufacturer: string;
+        composition: string;
+        batch_no: string;
+        manufacturing_date: string;
+        expiry_date: string;
+        pack_size?: string;
+        mrp: number;
+        barcode?: string;
+        rx_required?: boolean;
+        storage_instructions: string;
+        warnings: string;
+        field_evidence?: Record<string, {
+          value: string | number;
+          confidence: number;
+          source: string;
+          pass?: string;
+        }>;
+      };
+      packageFields?: {
+        batch_no: string;
+        manufacturing_date: string;
+        expiry_date: string;
+        mrp: number;
+        barcode?: string;
+        storage_instructions: string;
+        warnings: string;
+      };
+      catalogFields?: {
+        name: string;
+        composition: string;
+        manufacturer: string;
+        strength: string;
+        dosage_form: string;
+        price: number;
+        pack_size_label?: string;
+      };
+    }>('/medicine/identify', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+  extractMedicineFields: (payload: { text: string }) =>
+    request<any>('/medicine/extract-fields', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     }),
 };
 

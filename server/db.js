@@ -20,6 +20,7 @@ const SEED_FILE = path.join(__dirname, 'seedData.json');
 
 const COLLECTIONS = [
   'medicines',
+  'medicineBarcodes',
   'inventory',
   'sales',
   'suppliers',
@@ -32,8 +33,13 @@ const COLLECTIONS = [
   'refillRequests',
   'reminders',
   'supportTickets',
-  'feedback'
-  , 'auditLogs'
+  'feedback',
+  'auditLogs',
+  'demand_forecasts',
+  'supply_risk_predictions',
+  'supplier_performance',
+  'reorder_recommendations',
+  'hospital_demand'
 ];
 
 function emptyState() {

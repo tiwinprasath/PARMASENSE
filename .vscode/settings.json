@@ -1,0 +1,10 @@
+{
+    "chat.editor.preferCopilotHarness": false,
+    "python.analysis.aiCodeActions": {
+        
+        "implementAbstractClasses": true,
+        "generateSymbol": true,
+        "convertFormatString": true
+    },
+    "github.copilot.chat.localIndex.enabled": true
+}

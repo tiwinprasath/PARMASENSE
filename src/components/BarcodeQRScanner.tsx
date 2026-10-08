@@ -8,8 +8,9 @@ import {
   Camera, Upload, CheckCircle2, RefreshCw, Barcode, 
   Cpu, Zap, Sparkles, Check, ArrowRight, HelpCircle, Usb, Radio, Volume2
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { MedicineMaster } from '../types';
+import api from '../services/api';
 
 export interface ScannedResult {
   barcode: string;
@@ -30,6 +31,7 @@ interface BarcodeQRScannerProps {
   onScanMatch: (result: ScannedResult) => void;
   onClose: () => void;
   medicines?: MedicineMaster[];
+  onUseOcr?: () => void;
 }
 
 // Default pharmaceutical database for standard product barcode detection
@@ -117,7 +119,7 @@ const playScanBeep = () => {
   }
 };
 
-export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] }: BarcodeQRScannerProps) {
+export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [], onUseOcr }: BarcodeQRScannerProps) {
   const [scanMode, setScanMode] = useState<'camera' | 'upload' | 'manual'>('camera');
   
   // Scanner UI States
@@ -131,6 +133,8 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
   const [confidenceScore, setConfidenceScore] = useState(0);
   const [manualCodeInput, setManualCodeInput] = useState('');
   const [lastScanSource, setLastScanSource] = useState<'live-ai' | 'hardware-gun' | 'file-upload' | 'manual'>('live-ai');
+  const [lookupError, setLookupError] = useState('');
+  const scanLockRef = useRef(false);
 
   // Neural network visualization mock weights
   const [neuralWeights, setNeuralWeights] = useState<number[]>([12, 45, 87, 23, 56, 92, 11]);
@@ -231,7 +235,18 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
         verbose: false,
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true
-        }
+        },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.DATA_MATRIX
+        ]
       });
       html5QrcodeRef.current = html5Qrcode;
 
@@ -251,6 +266,8 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
           aspectRatio: 1.777778
         },
         (decodedText, decodedResult) => {
+          if (scanLockRef.current) return;
+          scanLockRef.current = true;
           // Successfully detected a QR or Barcode from Live Camera Stream!
           playScanBeep();
           setLastScanSource('live-ai');
@@ -284,87 +301,53 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
   }, [scanMode]);
 
   // Main high-speed code processing engine for ANY 1D barcode or 2D QR code
-  const processScannedCode = (rawCode: string, detectedType: string = 'EAN-13') => {
+  const processScannedCode = async (rawCode: string, detectedType: string = 'EAN-13') => {
     const cleanCode = rawCode.trim();
-    if (!cleanCode) return;
+    if (!cleanCode || scanLockRef.current && scannedRawCode === cleanCode) return;
 
     playScanBeep();
     setScannedRawCode(cleanCode);
     setIsAnalyzing(true);
     setAnalyzedResult(null);
-    setConfidenceScore(98.5);
-    setAnalysisStatus('Ultra-fast AI neural decoding...');
+    setConfidenceScore(0);
+    setLookupError('');
+    setAnalysisStatus('Validating code and checking PharmaSense database...');
 
-    // Snappy single-tick response (< 40ms) for high speed accuracy
-    setTimeout(() => {
+    try {
+      const lookup = await api.lookupBarcode({ code: cleanCode, format: detectedType });
+      const codeType = lookup.format || detectedType || 'UNKNOWN';
       setIsAnalyzing(false);
-
-      // 1. Check exact match in active Inventory
-      const matchedMed = medicines.find(m => 
-        m.barcode.toLowerCase() === cleanCode.toLowerCase() ||
-        m.id.toLowerCase() === cleanCode.toLowerCase()
-      );
-
-      // 2. Check exact match in Pharma Catalog
-      const matchedCatalog = STANDARD_PHARMA_CATALOG.find(item => 
-        item.barcode.toLowerCase() === cleanCode.toLowerCase()
-      );
-
-      // Identify code structure
-      let codeType = detectedType || 'EAN-13';
-      if (cleanCode.startsWith('QR') || cleanCode.includes('{') || cleanCode.includes('http') || cleanCode.length > 22) {
-        codeType = 'QR-Code';
-      } else if (/^\d{13}$/.test(cleanCode)) {
-        codeType = 'EAN-13';
-      } else if (/^\d{12}$/.test(cleanCode)) {
-        codeType = 'UPC-A';
-      } else if (/^[A-Za-z0-9\-/_]+$/.test(cleanCode) && cleanCode.length > 6) {
-        codeType = 'CODE-128';
-      }
-
-      if (matchedMed) {
-        setConfidenceScore(99.9);
-        setAnalyzedResult({
-          barcode: matchedMed.barcode || cleanCode,
-          name: matchedMed.name,
-          genericName: matchedMed.genericName,
-          category: matchedMed.category,
-          manufacturer: matchedMed.manufacturer,
-          strength: matchedMed.strength,
-          unit: matchedMed.unit,
-          mrp: matchedMed.mrp,
-          description: matchedMed.description || 'Matched from pharmacy inventory database.',
-          type: codeType,
-          confidence: 99.9,
-          isNewCode: false
-        });
-      } else if (matchedCatalog) {
-        setConfidenceScore(99.8);
-        setAnalyzedResult({
-          ...matchedCatalog,
-          type: codeType,
-          confidence: 99.8,
-          isNewCode: false
-        });
-      } else {
-        // 3. Unknown / New barcode or QR code from physical product
-        setConfidenceScore(99.2);
+      setConfidenceScore(Math.round((lookup.confidence || 0) * 100));
+      if (!lookup.matched || !lookup.medicine) {
+        setLookupError(lookup.message || 'Medicine not found in PharmaSense database.');
         setAnalyzedResult({
           barcode: cleanCode,
-          name: `Scanned Product (${cleanCode})`,
-          genericName: `Decoded Payload: ${cleanCode}`,
-          category: 'General Medicine',
-          manufacturer: 'Scanned Manufacturer',
-          strength: 'Standard',
-          unit: 'Unit',
-          mrp: 0.00,
-          description: `Fast decoded ${codeType} barcode payload: ${cleanCode}`,
-          type: codeType,
-          confidence: 99.2,
-          isNewCode: true
+          name: 'Medicine not found',
+          genericName: lookup.qrData?.isUrl ? `QR domain: ${new URL(cleanCode).hostname}` : 'Use OCR or manual search to identify this medicine.',
+          category: '', manufacturer: '', strength: '', unit: '', mrp: 0,
+          description: lookup.message || 'No matching medicine exists in the PharmaSense database.',
+          type: codeType, confidence: 0, isNewCode: true
         });
+        return;
       }
-    }, 40);
+      const medicine = lookup.medicine;
+      setAnalyzedResult({
+        barcode: lookup.code,
+        name: medicine.name,
+        genericName: medicine.composition,
+        category: '',
+        manufacturer: medicine.manufacturer,
+        strength: '', unit: '', mrp: medicine.price,
+        description: medicine.description,
+        type: codeType, confidence: lookup.confidence * 100, isNewCode: false
+      });
+    } catch (error: any) {
+      setIsAnalyzing(false);
+      setConfidenceScore(0);
+      setLookupError(error?.message || 'Database lookup failed.');
+    } finally {
+      setTimeout(() => { scanLockRef.current = false; }, 1200);
+    }
   };
 
   // Upload image scanning via Html5Qrcode scanFile or fallback
@@ -377,11 +360,10 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
         const tempScanner = new Html5Qrcode('temp-qr-reader-element');
         const decodedText = await tempScanner.scanFile(file, true);
         tempScanner.clear();
-        processScannedCode(decodedText, decodedText.length > 20 ? 'QR-Code' : 'EAN-13');
+        processScannedCode(decodedText, decodedText.length > 20 ? 'QR_CODE' : 'EAN_13');
       } catch (err) {
-        console.warn('File barcode reading fallback triggered:', err);
-        const sampleCode = '890' + Math.floor(1000000000 + Math.random() * 9000000000);
-        processScannedCode(sampleCode, 'EAN-13');
+        console.warn('File barcode reading failed:', err);
+        setLookupError('No barcode or QR code detected in this image. Use OCR instead.');
       }
     }
   };
@@ -391,7 +373,7 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
     e.preventDefault();
     if (manualCodeInput.trim()) {
       setLastScanSource('manual');
-      processScannedCode(manualCodeInput.trim(), manualCodeInput.includes('QR') ? 'QR-Code' : 'EAN-13');
+      processScannedCode(manualCodeInput.trim(), manualCodeInput.startsWith('{') || /^https?:\/\//i.test(manualCodeInput) ? 'QR_CODE' : 'EAN_13');
     }
   };
 
@@ -582,33 +564,6 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
               )}
             </div>
 
-            {/* Instant Sample Code Tester Chips */}
-            <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-              <span className="text-[10px] font-bold text-slate-400 uppercase font-mono flex items-center gap-1.5 mb-2">
-                <Zap className="h-3.5 w-3.5 text-teal-400" />
-                Quick Test Samples (Click to Scan):
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {STANDARD_PHARMA_CATALOG.map((item) => (
-                  <button
-                    key={item.barcode}
-                    onClick={() => {
-                      setLastScanSource('live-ai');
-                      processScannedCode(item.barcode, item.type);
-                    }}
-                    className="text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-teal-500/40 p-2 rounded-lg text-xs transition-all cursor-pointer group"
-                  >
-                    <span className="font-bold text-slate-200 block truncate group-hover:text-teal-400">
-                      {item.name}
-                    </span>
-                    <span className="text-[9px] text-slate-500 block font-mono truncate">
-                      {item.barcode}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
           </div>
 
           {/* Right Column: Output & Action Panel */}
@@ -689,9 +644,15 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
 
                   {analyzedResult.isNewCode && (
                     <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 text-[10px] text-slate-400 font-mono">
-                      ✨ Click "Apply Scanned Barcode" to autofill this barcode into your inventory, pos, or search query instantly!
+                      {lookupError || 'No trusted medicine match was found for this code.'}
                     </div>
                   )}
+                </div>
+              )}
+
+              {lookupError && !analyzedResult && (
+                <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[10px] text-amber-200">
+                  {lookupError}
                 </div>
               )}
 
@@ -699,16 +660,36 @@ export default function BarcodeQRScanner({ onScanMatch, onClose, medicines = [] 
 
             {/* Action Buttons */}
             <div className="space-y-2 pt-4 border-t border-slate-800 mt-4">
+              {onUseOcr && (
+                <button
+                  onClick={onUseOcr}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 cursor-pointer"
+                >
+                  Use OCR Instead
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setAnalyzedResult(null);
+                  setScannedRawCode(null);
+                  setLookupError('');
+                  setConfidenceScore(0);
+                  setScanMode('camera');
+                }}
+                className="w-full py-2.5 rounded-xl text-xs font-bold text-teal-300 border border-teal-500/30 hover:bg-teal-500/10 cursor-pointer"
+              >
+                Scan Another
+              </button>
               <button
                 onClick={applyResult}
-                disabled={!analyzedResult}
+                disabled={!analyzedResult || analyzedResult.isNewCode}
                 className={`w-full py-2.5 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
-                  analyzedResult 
+                  analyzedResult && !analyzedResult.isNewCode
                     ? 'bg-teal-500 text-slate-950 hover:bg-teal-400 shadow-lg shadow-teal-500/10' 
                     : 'bg-slate-800 text-slate-600 cursor-not-allowed'
                 }`}
               >
-                Apply Scanned Barcode
+                {analyzedResult?.isNewCode ? 'Database Match Required' : 'Apply Matched Medicine'}
               </button>
             </div>
 

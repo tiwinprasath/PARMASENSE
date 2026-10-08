@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Bot, Send, Sparkles, User } from 'lucide-react';
 import { MedicineMaster } from '../types';
 
+import api from '../services/api';
+
 interface PharmacyChatbotProps {
   role: string;
   medicines: MedicineMaster[];
@@ -30,14 +32,14 @@ const getLocalReply = (question: string, role: string, medicines: MedicineMaster
   if (normalizedQuestion.includes('stock') || normalizedQuestion.includes('inventory')) {
     return patientMode ? 'Stock quantities are not shown in the patient assistant. Ask the pharmacy team about availability.' : 'Open Smart Inventory to inspect batches, quantities, expiry dates, and reorder levels.';
   }
-  return `I am the ${role} pharmacy assistant. I can answer medicine reference questions and guide you to features available for your role. This local response engine is ready to be connected to your trained model.`;
+  return `I am the ${role} pharmacy assistant. I can answer medicine reference questions and guide you to features available for your role.`;
 };
 
 export default function PharmacyChatbot({ role, medicines, patientMode = false }: PharmacyChatbotProps) {
   const [question, setQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 1, sender: 'assistant', text: `Hello. I am your ${role} pharmacy assistant. How can I help?` }
+    { id: 1, sender: 'assistant', text: `Hello. I am your ${role} pharmacy assistant. Ask me anything about medicines, dosages, side effects, compositions, or prices in the dataset.` }
   ]);
 
   const sendMessage = async (event: React.FormEvent) => {
@@ -51,21 +53,31 @@ export default function PharmacyChatbot({ role, medicines, patientMode = false }
     setIsSending(true);
 
     try {
-      const endpoint = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_AI_CHAT_ENDPOINT;
-      if (endpoint) {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: trimmedQuestion, role, patientMode })
-        });
-        if (!response.ok) throw new Error('AI endpoint unavailable');
-        const result = await response.json();
-        setMessages((current) => [...current, { id: Date.now() + 1, sender: 'assistant', text: result.answer || 'The AI model returned no answer.' }]);
-      } else {
-        setMessages((current) => [...current, { id: Date.now() + 1, sender: 'assistant', text: getLocalReply(trimmedQuestion, role, medicines, patientMode) }]);
-      }
+      // Connect to the backend dataset search endpoint
+      const result = await api.chatWithAssistant({
+        question: trimmedQuestion,
+        role,
+        patientMode
+      });
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          sender: 'assistant',
+          text: result?.answer || 'No response returned from the pharmacy service.'
+        }
+      ]);
     } catch {
-      setMessages((current) => [...current, { id: Date.now() + 1, sender: 'assistant', text: getLocalReply(trimmedQuestion, role, medicines, patientMode) }]);
+      // Graceful fallback to local context if backend is momentarily unreachable
+      setMessages((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          sender: 'assistant',
+          text: getLocalReply(trimmedQuestion, role, medicines, patientMode)
+        }
+      ]);
     } finally {
       setIsSending(false);
     }
@@ -88,7 +100,7 @@ export default function PharmacyChatbot({ role, medicines, patientMode = false }
         {messages.map((message) => (
           <div key={message.id} className={`flex gap-2 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             {message.sender === 'assistant' && <Bot className="h-4 w-4 text-teal-400 mt-1 shrink-0" />}
-            <p className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${message.sender === 'user' ? 'bg-teal-600 text-white' : 'bg-slate-800 text-slate-300'}`}>{message.text}</p>
+            <p className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-line ${message.sender === 'user' ? 'bg-teal-600 text-white' : 'bg-slate-800 text-slate-300'}`}>{message.text}</p>
             {message.sender === 'user' && <User className="h-4 w-4 text-slate-400 mt-1 shrink-0" />}
           </div>
         ))}

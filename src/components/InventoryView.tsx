@@ -8,8 +8,9 @@ import { MedicineMaster, InventoryItem, Supplier } from '../types';
 import { 
   Search, Plus, Filter, ArrowUpDown, Calendar, HelpCircle, 
   Settings, CheckCircle2, AlertTriangle, AlertCircle, Trash, Edit, RefreshCw,
-  Barcode, Sparkles
+  Barcode, Sparkles, Camera
 } from 'lucide-react';
+import SmartMedicineCapture from './SmartMedicineCapture';
 import BarcodeQRScanner from './BarcodeQRScanner';
 
 interface InventoryViewProps {
@@ -44,6 +45,7 @@ export default function InventoryView({
   // New Medicine Form modal state
   const [showAddMedModal, setShowAddMedModal] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showOcrScannerModal, setShowOcrScannerModal] = useState(false);
   const [newMed, setNewMed] = useState({
     name: '',
     genericName: '',
@@ -215,19 +217,20 @@ export default function InventoryView({
   const handleScanMatch = (result: any) => {
     setNewMed({
       name: result.name,
-      genericName: result.genericName,
-      brand: result.name,
+      genericName: result.genericName || result.composition || '',
+      brand: result.brand || result.name,
       manufacturer: result.manufacturer,
-      category: result.category,
-      strength: result.strength,
-      unit: result.unit,
-      mrp: result.mrp,
+      category: result.category || 'Analgesic & Antipyretic',
+      strength: result.strength || '',
+      unit: result.unit || 'Tablet',
+      mrp: result.mrp || 10,
       gst: 12,
       storageCondition: 'Store below 25°C',
-      barcode: result.barcode,
-      description: result.description
+      barcode: result.barcode || '',
+      description: result.description || ''
     });
     setShowScannerModal(false);
+    setShowAddMedModal(true);
   };
 
   const handleBatchSubmit = (e: React.FormEvent) => {
@@ -304,13 +307,22 @@ export default function InventoryView({
             </div>
 
             {!readOnly && (
-              <button
-                onClick={() => setShowAddMedModal(true)}
-                className="flex items-center justify-center gap-1.5 px-4.5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs cursor-pointer transition-all shrink-0"
-              >
-                <Plus className="h-4.5 w-4.5" />
-                Add Medicine
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowScannerModal(true)}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-xs cursor-pointer transition-all"
+                >
+                  <Camera className="h-4 w-4 text-teal-400" />
+                  Smart Medicine Capture
+                </button>
+                <button
+                  onClick={() => setShowAddMedModal(true)}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg shadow-xs cursor-pointer transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  Manual Entry
+                </button>
+              </div>
             )}
           </div>
 
@@ -826,8 +838,8 @@ export default function InventoryView({
                     onClick={() => setShowScannerModal(true)}
                     className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer transition-all shrink-0"
                   >
-                    <Sparkles className="h-4 w-4 text-teal-400 animate-pulse" />
-                    Scan AI Model
+                    <Camera className="h-4 w-4 text-teal-400" />
+                    Smart Capture
                   </button>
                 </div>
               </div>
@@ -1024,10 +1036,26 @@ export default function InventoryView({
       )}
 
       {showScannerModal && (
-        <BarcodeQRScanner 
-          onScanMatch={handleScanMatch} 
-          onClose={() => setShowScannerModal(false)} 
+        <BarcodeQRScanner
+          onScanMatch={handleScanMatch}
+          onClose={() => setShowScannerModal(false)}
           medicines={medicines}
+          onUseOcr={() => {
+            setShowScannerModal(false);
+            setShowOcrScannerModal(true);
+          }}
+        />
+      )}
+
+      {showOcrScannerModal && (
+        <SmartMedicineCapture 
+          onScanMatch={handleScanMatch} 
+          onClose={() => setShowOcrScannerModal(false)} 
+          medicines={medicines}
+          onManualEntry={() => {
+            setShowOcrScannerModal(false);
+            setShowAddMedModal(true);
+          }}
         />
       )}
     </div>

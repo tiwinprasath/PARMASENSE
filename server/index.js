@@ -17,14 +17,23 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import db from './db.js';
+import medicineSearch from './medicineSearch.js';
+import { lookupBarcode } from './barcodeLookup.js';
+import supplyChainRoutes from './supplyChain/routes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Initialize the medicine dataset index asynchronously on startup
+medicineSearch.ensureIndexed().catch((err) => {
+  console.error('[medicineSearch] Background indexing error:', err);
+});
+
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.use('/api/supply-chain', supplyChainRoutes);
 
 // Simple request log, useful when debugging the integration
 app.use((req, _res, next) => {
@@ -88,6 +97,124 @@ app.get('/', (_req, res) => {
 // --- Health check -----------------------------------------------------
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'pharmasense-api', time: new Date().toISOString() });
+});
+
+// --- AI Pharmacy Chatbot Endpoint -------------------------------------
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { question, role = 'Staff', patientMode = false } = req.body || {};
+    if (!question || !String(question).trim()) {
+      return res.status(400).json({ error: 'Question is required.' });
+    }
+
+    const result = await medicineSearch.handleChatQuery(String(question), { role, patientMode });
+    res.json(result);
+  } catch (err) {
+    console.error('[api/chat] Error handling question:', err);
+    res.status(500).json({ 
+      error: 'Failed to process medicine question',
+      answer: 'Sorry, an unexpected error occurred while searching the medicine dataset. Please try again.'
+    });
+  }
+});
+
+// --- Direct Medicine Search Endpoint ----------------------------------
+app.get('/api/medicines/search', (req, res) => {
+  try {
+    const query = req.query.q || '';
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const matches = medicineSearch.searchMedicines(query, limit);
+    res.json(matches);
+  } catch (err) {
+    console.error('[api/medicines/search] Error searching dataset:', err);
+    res.status(500).json({ error: 'Failed to search medicines' });
+  }
+});
+
+// --- Deterministic Barcode / QR Medicine Lookup -----------------------
+app.post('/api/scanner/barcode', (req, res) => {
+  try {
+    const { code = '', format = '' } = req.body || {};
+    const result = lookupBarcode({ code, format }, db.readState());
+    res.status(result.error ? 400 : 200).json(result);
+  } catch (err) {
+    console.error('[api/scanner/barcode] Lookup error:', err);
+    res.status(500).json({
+      success: false,
+      matched: false,
+      error: 'Barcode lookup is temporarily unavailable.'
+    });
+  }
+});
+
+// --- Smart Medicine Capture: OCR Identification Endpoint --------------
+app.post('/api/medicine/identify', async (req, res) => {
+  try {
+    const { text = '', textBySource = {}, ocrConfidence = 0, ocrEvidence = [], barcode = '', existingMedicines = [], image, photos } = req.body || {};
+    const photoPayloadProvided = Array.isArray(photos) || Array.isArray(image) || typeof image === 'string';
+    const normalizedPhotos = Array.isArray(photos)
+      ? photos.filter(Boolean)
+      : Array.isArray(image)
+        ? image.filter(Boolean)
+        : image
+          ? [image]
+          : [];
+
+    if (!text || !String(text).trim()) {
+      if (photoPayloadProvided) {
+        return res.status(200).json({
+          identified: false,
+          medicineFoundInDatabase: false,
+          requiresVerification: true,
+          vlmUsed: false,
+          vlmFields: [],
+          ocrMethod: 'Tesseract OCR',
+          askVerification: true,
+          error: normalizedPhotos.length > 0
+            ? 'No OCR text provided, manual review required.'
+            : 'No usable photos or OCR text provided, manual review required.'
+        });
+      }
+      return res.status(400).json({
+        identified: false,
+        medicineFoundInDatabase: false,
+        requiresVerification: true,
+        vlmUsed: false,
+        vlmFields: [],
+        error: 'No text provided for identification'
+      });
+    }
+
+    const result = await medicineSearch.identifyMedicine(String(text), existingMedicines, textBySource, ocrEvidence, barcode, { photos: normalizedPhotos });
+    result.ocrConfidence = Number(ocrConfidence) || result.ocrConfidence || 0;
+    result.medicineFoundInDatabase ??= Boolean(result.identified);
+    result.requiresVerification ??= Boolean(!result.identified || result.confidence < 88);
+    result.vlmUsed ??= false;
+    result.vlmFields ??= [];
+    res.json(result);
+  } catch (err) {
+    console.error('[api/medicine/identify] Error identifying medicine:', err);
+    res.status(500).json({
+      error: 'Failed to identify medicine',
+      identified: false,
+      medicineFoundInDatabase: false,
+      requiresVerification: true,
+      vlmUsed: false,
+      vlmFields: []
+    });
+  }
+});
+
+// --- Smart Medicine Capture: Field Extraction Helper ------------------
+app.post('/api/medicine/extract-fields', (req, res) => {
+  try {
+    const { text = '' } = req.body || {};
+    const fields = medicineSearch.extractMedicineFields(String(text));
+    res.json(fields);
+  } catch (err) {
+    console.error('[api/medicine/extract-fields] Error extracting fields:', err);
+    res.status(500).json({ error: 'Failed to extract fields' });
+  }
 });
 
 // --- Auth Endpoints ----------------------------------------------------

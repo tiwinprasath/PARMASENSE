@@ -7,8 +7,9 @@ import React, { useState, useMemo } from 'react';
 import { MedicineMaster, InventoryItem, Supplier } from '../types';
 import { 
   Search, ShieldAlert, Sparkles, Phone, Mail, MapPin, 
-  Package, Snowflake, Barcode, ClipboardList, HelpCircle
+  Package, Snowflake, Barcode, ClipboardList, HelpCircle, Camera
 } from 'lucide-react';
+import SmartMedicineCapture from './SmartMedicineCapture';
 import BarcodeQRScanner from './BarcodeQRScanner';
 import PharmacyChatbot from './PharmacyChatbot';
 
@@ -30,6 +31,7 @@ export default function PharmacyAssistantView({
   const [query, setQuery] = useState('');
   const [selectedMedId, setSelectedMedId] = useState<string | null>(null);
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showOcrScannerModal, setShowOcrScannerModal] = useState(false);
 
   // Filter medicines based on searching
   const matches = useMemo(() => {
@@ -120,10 +122,10 @@ export default function PharmacyAssistantView({
                 type="button"
                 onClick={() => setShowScannerModal(true)}
                 className="px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-teal-400 rounded-xl cursor-pointer transition-all shrink-0 flex items-center justify-center gap-1.5 text-xs font-bold"
-                title="AI Neural Scanner & Model Trainer"
+                title="Smart Medicine Capture (OCR & Dataset Match)"
               >
-                <Sparkles className="h-4 w-4 text-teal-400 animate-pulse" />
-                <span className="hidden sm:inline">AI Scanner</span>
+                <Camera className="h-4 w-4 text-teal-400" />
+                <span className="hidden sm:inline">Smart Capture</span>
               </button>
             </div>
 
@@ -290,12 +292,27 @@ export default function PharmacyAssistantView({
       </div>
 
       {showScannerModal && (
-        <BarcodeQRScanner 
+        <BarcodeQRScanner
           onScanMatch={(result) => {
             setQuery(result.name);
             setShowScannerModal(false);
-          }} 
+          }}
           onClose={() => setShowScannerModal(false)}
+          medicines={medicines}
+          onUseOcr={() => {
+            setShowScannerModal(false);
+            setShowOcrScannerModal(true);
+          }}
+        />
+      )}
+
+      {showOcrScannerModal && (
+        <SmartMedicineCapture 
+          onScanMatch={(result) => {
+            setQuery(result.name);
+            setShowOcrScannerModal(false);
+          }} 
+          onClose={() => setShowOcrScannerModal(false)}
           medicines={medicines}
         />
       )}

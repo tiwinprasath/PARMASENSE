@@ -42,7 +42,49 @@ export default function RxDeskView({ mode, userEmail, customers, medicines, inve
 }
 
 function Queue({ title, requests, medicines, onUpdate }: { title: string; requests: Array<MedicineRequest | RefillRequest>; medicines: MedicineMaster[]; onUpdate: (id: string, status: MedicineRequest['status']) => void }) { return <Panel title={title}><Rows items={requests} empty={`No ${title.toLowerCase()}.`} render={item => <><span><strong>{item.id}</strong><small>{medicines.find(medicine => medicine.id === item.medicineId)?.name || 'Unknown medicine'} · Patient: {item.patientEmail} · Qty {item.quantity}</small></span><span className="flex items-center gap-2"><Status value={item.status} /><select value={item.status} onChange={event => onUpdate(item.id, event.target.value as MedicineRequest['status'])} className="text-[10px] border border-slate-200 rounded px-1.5 py-1"><option>Pending</option><option>Verified</option><option>Preparing</option><option>Ready for Pickup</option><option>Completed</option><option>Rejected</option></select></span></>} /></Panel>; }
-function MedicineSearch({ medicines, inventory }: { medicines: MedicineMaster[]; inventory: InventoryItem[] }) { const [query, setQuery] = useState(''); const matches = useMemo(() => medicines.filter(item => `${item.name} ${item.genericName} ${item.brand} ${item.barcode}`.toLowerCase().includes(query.toLowerCase())), [medicines, query]); return <Panel title="Medicine Search & Availability"><div className="relative mb-4"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, generic, brand, barcode, or batch" className="w-full pl-9 px-3 py-2 text-sm border border-slate-200 rounded-lg" /></div><div className="grid md:grid-cols-2 gap-3">{matches.map(medicine => { const batches = inventory.filter(item => item.medicineId === medicine.id); const available = batches.reduce((sum, item) => sum + (new Date(item.expiryDate) > new Date() ? item.currentQuantity : 0), 0); return <div key={medicine.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100"><div className="flex justify-between"><strong>{medicine.name}</strong><Status value={available > 0 ? 'Available' : 'Out of Stock'} /></div><p className="text-xs text-slate-500 mt-1">{medicine.genericName} · {medicine.category} · Barcode {medicine.barcode}</p><p className="text-xs text-slate-600 mt-2">Stock: {available} · Price: ₹{medicine.mrp.toFixed(2)}</p>{batches.slice(0, 2).map(batch => <p key={batch.id} className={`text-[10px] mt-1 ${new Date(batch.expiryDate) <= new Date() ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>Batch {batch.batchNumber} · Expiry {batch.expiryDate} · {new Date(batch.expiryDate) <= new Date() ? 'Do not dispense' : `${batch.currentQuantity} units`}</p>)}</div>; })}</div></Panel>; }
+function MedicineSearch({ medicines, inventory }: { medicines: MedicineMaster[]; inventory: InventoryItem[] }) {
+  const [query, setQuery] = useState('');
+  const matches = useMemo(() => medicines.filter(item => `${item.name} ${item.genericName} ${item.brand} ${item.barcode}`.toLowerCase().includes(query.toLowerCase())), [medicines, query]);
+  return (
+    <Panel title="Medicine Search & Availability">
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, generic, brand, barcode, or batch" className="w-full pl-9 px-3 py-2 text-sm border border-slate-200 rounded-lg" />
+      </div>
+      <div className="grid md:grid-cols-2 gap-3">
+        {matches.map(medicine => {
+          const batches = inventory.filter(item => item.medicineId === medicine.id);
+          const available = batches.reduce((sum, item) => sum + (new Date(item.expiryDate) > new Date() ? item.currentQuantity : 0), 0);
+          const isShortageRisk = available <= 30;
+          return (
+            <div key={medicine.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex justify-between items-start">
+                <div>
+                  <strong>{medicine.name}</strong>
+                  <p className="text-xs text-slate-500">{medicine.genericName} · {medicine.category}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Status value={available > 0 ? 'Available' : 'Out of Stock'} />
+                  {isShortageRisk && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                      Shortage Warning
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mt-2">Usable Stock: <strong>{available} units</strong> · MRP: ₹{medicine.mrp.toFixed(2)}</p>
+              {batches.slice(0, 2).map(batch => (
+                <p key={batch.id} className={`text-[10px] mt-1 ${new Date(batch.expiryDate) <= new Date() ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                  Batch {batch.batchNumber} · Expiry {batch.expiryDate} · {new Date(batch.expiryDate) <= new Date() ? 'Expired — Do not dispense' : `${batch.currentQuantity} units`}
+                </p>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
 function Header({ title, subtitle }: { title: string; subtitle: string }) { return <header className="bg-slate-950 text-white p-6 rounded-2xl border border-slate-800 shadow-lg"><span className="text-[10px] font-mono font-bold uppercase tracking-widest text-teal-400">RX Desk</span><h1 className="font-display text-2xl font-bold mt-2">{title}</h1><p className="text-sm text-slate-400 mt-1">{subtitle}</p></header>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h2 className="font-display font-bold text-slate-900 mb-4">{title}</h2>{children}</section>; }
 function Rows<T>({ items, empty, render }: { items: T[]; empty: string; render: (item: T) => React.ReactNode }) { return items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-xl text-sm text-slate-700">{render(item)}</div>)}</div> : <p className="text-sm text-slate-400">{empty}</p>; }

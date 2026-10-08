@@ -7,8 +7,9 @@ import React, { useState, useMemo } from 'react';
 import { MedicineMaster, InventoryItem, Sale, Customer } from '../types';
 import { 
   Search, ShoppingCart, Tag, CreditCard, DollarSign, Sparkles, 
-  Trash2, Receipt, CheckCircle, AlertTriangle, ArrowRight, UserPlus, Barcode
+  Trash2, Receipt, CheckCircle, AlertTriangle, ArrowRight, UserPlus, Barcode, Camera
 } from 'lucide-react';
+import SmartMedicineCapture from './SmartMedicineCapture';
 import BarcodeQRScanner from './BarcodeQRScanner';
 
 interface SalesViewProps {
@@ -53,12 +54,14 @@ export default function SalesView({
   const [walkInName, setWalkInName] = useState('Walk-In Customer');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Net Banking'>('UPI');
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showOcrScannerModal, setShowOcrScannerModal] = useState(false);
 
   const handleScanMatch = (result: any) => {
     const matched = medicines.find(
-      m => m.barcode === result.barcode || 
+      m => (result.barcode && m.barcode === result.barcode) || 
            m.name.toLowerCase() === result.name.toLowerCase() ||
-           m.genericName.toLowerCase() === result.genericName.toLowerCase()
+           m.genericName.toLowerCase() === result.genericName.toLowerCase() ||
+           (result.genericName && m.genericName.toLowerCase().includes(result.genericName.toLowerCase()))
     );
 
     if (matched) {
@@ -338,8 +341,8 @@ export default function SalesView({
                   onClick={() => setShowScannerModal(true)}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-teal-400 rounded-xl cursor-pointer transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
                 >
-                  <Sparkles className="h-3.5 w-3.5 text-teal-400 animate-pulse" />
-                  AI Barcode/QR Scanner
+                  <Camera className="h-3.5 w-3.5 text-teal-400" />
+                  Smart Medicine Capture
                 </button>
               </div>
 
@@ -722,9 +725,21 @@ export default function SalesView({
       )}
 
       {showScannerModal && (
-        <BarcodeQRScanner 
-          onScanMatch={handleScanMatch} 
+        <BarcodeQRScanner
+          onScanMatch={handleScanMatch}
           onClose={() => setShowScannerModal(false)}
+          medicines={medicines}
+          onUseOcr={() => {
+            setShowScannerModal(false);
+            setShowOcrScannerModal(true);
+          }}
+        />
+      )}
+
+      {showOcrScannerModal && (
+        <SmartMedicineCapture 
+          onScanMatch={handleScanMatch} 
+          onClose={() => setShowOcrScannerModal(false)}
           medicines={medicines}
         />
       )}

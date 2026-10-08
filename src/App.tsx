@@ -35,19 +35,20 @@ import ManagerToolsView from './components/ManagerToolsView';
 import RxDeskView from './components/RxDeskView';
 import AdminToolsView from './components/AdminToolsView';
 import ProfileView from './components/ProfileView';
+import SupplyChainIntelligenceView from './components/supplyChain/SupplyChainIntelligenceView';
 
 // Nav icons
 import { 
   LayoutDashboard, Package, ShoppingCart, Truck, 
-  Users, FileText, Search, FileBarChart2, ShieldAlert,
+  Users, FileText, Search, FileBarChart2, ShieldAlert, Network,
   ChevronLeft, ChevronRight, Menu, LogIn, LogOut, TrendingUp,
   Calendar, RotateCcw, Sparkles, Lock, X, User, Bell as BellIcon, ClipboardList, Activity as ActivityIcon, Settings as SettingsIcon, CircleUserRound
 } from 'lucide-react';
 
 const ROLE_ACCESS: Record<string, string[]> = {
-  Admin: ['dashboard', 'inventory', 'sales', 'profit', 'suppliers', 'customers', 'prescriptions', 'assistant', 'prediction', 'reports', 'scheduler', 'admin-users', 'admin-roles', 'admin-audit', 'admin-health', 'admin-settings', 'admin-profile'],
-  Pharmacist: ['dashboard', 'sales', 'customers', 'prescriptions', 'assistant', 'inventory', 'rx-requests', 'rx-refills', 'rx-medicine-search', 'rx-notifications', 'rx-reports', 'rx-profile'],
-  Manager: ['dashboard', 'inventory', 'profit', 'suppliers', 'reports', 'prediction', 'customers', 'prescriptions', 'scheduler', 'manager-analytics', 'reorder', 'manager-notifications', 'scheduler-status', 'manager-profile'],
+  Admin: ['dashboard', 'supply-chain', 'inventory', 'sales', 'profit', 'suppliers', 'customers', 'prescriptions', 'assistant', 'prediction', 'reports', 'scheduler', 'admin-users', 'admin-roles', 'admin-audit', 'admin-health', 'admin-settings', 'admin-profile'],
+  Pharmacist: ['dashboard', 'supply-chain', 'sales', 'customers', 'prescriptions', 'assistant', 'inventory', 'rx-requests', 'rx-refills', 'rx-medicine-search', 'rx-notifications', 'rx-reports', 'rx-profile'],
+  Manager: ['dashboard', 'supply-chain', 'inventory', 'profit', 'suppliers', 'reports', 'prediction', 'customers', 'prescriptions', 'scheduler', 'manager-analytics', 'reorder', 'manager-notifications', 'scheduler-status', 'manager-profile'],
   Patient: ['assistant', 'patient-portal']
 };
 
@@ -723,6 +724,16 @@ export default function App() {
             currentSystemDate={currentSystemDate}
           />
         );
+      case 'supply-chain':
+        return (
+          <SupplyChainIntelligenceView
+            medicines={medicines}
+            inventory={inventory}
+            suppliers={suppliers}
+            sales={sales}
+            currentSystemDate={currentSystemDate}
+          />
+        );
       case 'inventory':
         return (
           <InventoryView 
@@ -899,6 +910,7 @@ export default function App() {
   // Nav menu helper
   const NAV_ITEMS = [
     { id: 'dashboard', label: userRole === 'Admin' ? 'Admin Dashboard' : userRole === 'Manager' ? 'Manager Dashboard' : userRole === 'Pharmacist' ? 'RX Desk Dashboard' : 'Operations Dashboard', icon: LayoutDashboard },
+    { id: 'supply-chain', label: 'Supply Chain Intelligence', icon: Network },
     { id: 'inventory', label: userRole === 'Pharmacist' ? 'Limited inventory viewing' : 'Smart Inventory', icon: Package },
     { id: 'sales', label: userRole === 'Admin' ? 'Billing' : 'POS Billing', icon: ShoppingCart },
     { id: 'profit', label: userRole === 'Admin' ? 'Profit & expiry' : 'Profit Analysis & Expiries', icon: TrendingUp },
