@@ -17,6 +17,22 @@ export default function LockScreen({ userEmail, onUnlock, onLogout }: LockScreen
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const storedUsers = localStorage.getItem('pharmasense_users');
+    let localMatch = false;
+    if (storedUsers) {
+      try {
+        const users = JSON.parse(storedUsers);
+        localMatch = Array.isArray(users) && users.some((user) =>
+          typeof user?.email === 'string' &&
+          user.email.toLowerCase() === userEmail.trim().toLowerCase() &&
+          user.passwordHash === password
+        );
+      } catch {
+        localMatch = false;
+      }
+    }
+
     try {
       await api.loginAuth({ email: userEmail, password });
       setIsUnlocking(true);
@@ -25,6 +41,13 @@ export default function LockScreen({ userEmail, onUnlock, onLogout }: LockScreen
         onUnlock();
       }, 400);
     } catch (err) {
+      if (localMatch) {
+        setIsUnlocking(true);
+        setTimeout(() => {
+          onUnlock();
+        }, 400);
+        return;
+      }
       setError(err instanceof Error && err.message.includes('401')
         ? 'Incorrect security passcode. Access Denied.'
         : err instanceof Error ? err.message : 'Unable to verify passcode. Check the connection and try again.');
