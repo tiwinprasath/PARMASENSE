@@ -84,7 +84,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
       })
       .catch(() => {
         // Fallback seed if unreachable
-        if (localAccounts.length === 0) {
+        if (!localAccounts.some((user) => user.passwordHash)) {
           const defaultUsers: UserAccount[] = [
             {
               email: 'tiwinprasath056@gmail.com',
