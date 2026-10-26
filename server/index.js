@@ -96,7 +96,12 @@ app.get('/', (_req, res) => {
 
 // --- Health check -----------------------------------------------------
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'pharmasense-api', time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'pharmasense-api',
+    time: new Date().toISOString(),
+    geminiApiKeyConfigured: Boolean(process.env.GEMINI_API_KEY)
+  });
 });
 
 // --- AI Pharmacy Chatbot Endpoint -------------------------------------
@@ -402,6 +407,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`PharmeSense API listening on http://localhost:${PORT}`);
-});
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`PharmeSense API listening on http://localhost:${PORT}`);
+  });
+}

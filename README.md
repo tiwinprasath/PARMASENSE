@@ -656,3 +656,25 @@ PharmaSense — Smart Pharmacy Management System
 Built to make pharmacy operations smarter, faster, safer, and more efficient.
 
 > Manage Medicines. Predict Demand. Improve Pharmacy Care.
+
+## Deploying to Vercel
+
+The Vercel configuration builds the Vite frontend and exposes the Express API
+through `/api/*`. Configure the following in **Project Settings → Environment
+Variables** before deploying:
+
+- `GEMINI_API_KEY` — required for Gemini-powered medicine image extraction and
+  other Gemini features. Create the key in Google AI Studio and keep it as a
+  server-side environment variable; do not add it to frontend variables such as
+  `VITE_GEMINI_API_KEY` or commit it to source control.
+
+Set the variable for the environments you deploy (Production, Preview, and/or
+Development), then redeploy so the function can read it. Check
+`https://<your-deployment-domain>/api/health`; its `geminiApiKeyConfigured`
+value indicates whether the server can see the key without revealing it.
+
+The current JSON-file database is suitable for local/demo use only. Vercel
+functions have ephemeral, read-only deployment filesystems, so changes made by
+API write endpoints are not durable across deployments or cold starts. Use a
+managed database before relying on deployed registration or operational data
+for production.
