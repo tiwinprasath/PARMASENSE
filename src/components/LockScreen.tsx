@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Unlock, LogOut, ArrowRight, ShieldAlert } from 'lucide-react';
+import { api } from '../services/api';
 
 interface LockScreenProps {
   userEmail: string;
@@ -8,45 +9,25 @@ interface LockScreenProps {
   onLogout: () => void;
 }
 
-interface UserAccount {
-  email: string;
-  passwordHash: string;
-  role: string;
-  name: string;
-}
-
 export default function LockScreen({ userEmail, onUnlock, onLogout }: LockScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isUnlocking, setIsUnlocking] = useState(false);
 
-  const handleUnlock = (e: React.FormEvent) => {
+  const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // Fetch accounts to validate password
-    let correctPassword = 'admin1234'; // Default fallback
-    const stored = localStorage.getItem('pharmasense_users');
-    if (stored) {
-      try {
-        const users: UserAccount[] = JSON.parse(stored);
-        const matched = users.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
-        if (matched) {
-          correctPassword = matched.passwordHash;
-        }
-      } catch (err) {
-        // use fallback
-      }
-    }
-
-    if (password === correctPassword) {
+    try {
+      await api.loginAuth({ email: userEmail, password });
       setIsUnlocking(true);
       // Trigger unlock after a small delay for animation satisfaction
       setTimeout(() => {
         onUnlock();
       }, 400);
-    } else {
-      setError('Incorrect security passcode. Access Denied.');
+    } catch (err) {
+      setError(err instanceof Error && err.message.includes('401')
+        ? 'Incorrect security passcode. Access Denied.'
+        : err instanceof Error ? err.message : 'Unable to verify passcode. Check the connection and try again.');
       // Shaking feedback animation
       setPassword('');
     }

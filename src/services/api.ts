@@ -15,7 +15,7 @@ import {
 
 export interface UserAccount {
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: string;
   name: string;
   active?: boolean;

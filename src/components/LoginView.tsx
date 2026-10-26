@@ -14,7 +14,7 @@ interface LoginViewProps {
 
 interface UserAccount {
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: string;
   name: string;
   phone?: string;

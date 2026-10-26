@@ -26,6 +26,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+function removePasswordHashes(state) {
+  return {
+    ...state,
+    users: (state.users || []).map(({ passwordHash: _passwordHash, ...user }) => user)
+  };
+}
+
 // Initialize the medicine dataset index asynchronously on startup
 medicineSearch.ensureIndexed().catch((err) => {
   console.error('[medicineSearch] Background indexing error:', err);
@@ -315,7 +322,7 @@ app.post('/auth/register', handleRegister);
 app.get('/api/state', (_req, res) => {
   try {
     const state = db.readState();
-    res.json(state);
+    res.json(removePasswordHashes(state));
   } catch (err) {
     console.error('Failed to read state:', err);
     res.status(500).json({ error: 'Failed to read application state' });
@@ -369,7 +376,9 @@ db.COLLECTIONS.forEach((collection) => {
   app.get(`/api/${collection}`, (_req, res) => {
     try {
       const state = db.readState();
-      res.json(state[collection]);
+      res.json(collection === 'users'
+        ? state.users.map(({ passwordHash: _passwordHash, ...user }) => user)
+        : state[collection]);
     } catch (err) {
       console.error(`Failed to read ${collection}:`, err);
       res.status(500).json({ error: `Failed to read ${collection}` });
