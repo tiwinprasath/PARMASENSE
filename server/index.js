@@ -107,7 +107,8 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     service: 'pharmasense-api',
     time: new Date().toISOString(),
-    geminiApiKeyConfigured: Boolean(process.env.GEMINI_API_KEY)
+    geminiApiKeyConfigured: Boolean(process.env.GEMINI_API_KEY),
+    vercelAdminConfigured: Boolean(process.env.VERCEL_ADMIN_EMAIL && process.env.VERCEL_ADMIN_PASSWORD)
   });
 });
 
@@ -238,9 +239,25 @@ const handleLogin = (req, res) => {
     }
     const state = db.readState();
     const users = state.users || [];
-    const matched = users.find(
+    let matched = users.find(
       (u) => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.passwordHash === password
     );
+    const vercelAdminEmail = process.env.VERCEL_ADMIN_EMAIL?.trim();
+    const vercelAdminPassword = process.env.VERCEL_ADMIN_PASSWORD;
+    if (
+      !matched &&
+      vercelAdminEmail &&
+      vercelAdminPassword &&
+      String(email).trim().toLowerCase() === vercelAdminEmail.toLowerCase() &&
+      password === vercelAdminPassword
+    ) {
+      matched = {
+        email: vercelAdminEmail,
+        name: process.env.VERCEL_ADMIN_NAME?.trim() || vercelAdminEmail,
+        role: 'Admin',
+        active: true
+      };
+    }
     if (!matched) {
       return res.status(401).json({ error: 'Invalid email or passcode credentials.' });
     }

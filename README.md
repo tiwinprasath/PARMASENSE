@@ -667,11 +667,16 @@ Variables** before deploying:
   other Gemini features. Create the key in Google AI Studio and keep it as a
   server-side environment variable; do not add it to frontend variables such as
   `VITE_GEMINI_API_KEY` or commit it to source control.
+- `VERCEL_ADMIN_EMAIL` and `VERCEL_ADMIN_PASSWORD` — set the admin email and
+  passcode you intend to use for the Vercel deployment. Keep the passcode
+  server-side and never commit it.
+- `VERCEL_ADMIN_NAME` — optional display name for the Vercel admin account.
 
-Set the variable for the environments you deploy (Production, Preview, and/or
-Development), then redeploy so the function can read it. Check
+Set the variables for the environments you deploy (Production, Preview, and/or
+Development), then redeploy so the function can read them. Check
 `https://<your-deployment-domain>/api/health`; its `geminiApiKeyConfigured`
-value indicates whether the server can see the key without revealing it.
+and `vercelAdminConfigured` values indicate whether the secrets are available
+without revealing them.
 
 The current JSON-file database is suitable for local/demo use only. Vercel
 functions have ephemeral, read-only deployment filesystems, so changes made by
