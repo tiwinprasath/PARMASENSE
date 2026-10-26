@@ -87,12 +87,13 @@ export interface BarcodeLookupResponse {
 const API_BASE = '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = `${API_BASE}${path}`;
+  const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
   if (!res.ok) {
-    let message = `Request to ${path} failed with status ${res.status}`;
+    let message = `Request to ${url} failed with status ${res.status}`;
     try {
       const body = await res.json();
       if (body?.error) message = body.error;

@@ -84,7 +84,7 @@ export default function ScenarioSimulator({
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <div className="flex items-center gap-2">

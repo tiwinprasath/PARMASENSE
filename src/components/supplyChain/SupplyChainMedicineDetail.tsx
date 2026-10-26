@@ -91,7 +91,7 @@ export default function SupplyChainMedicineDetail({
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl backdrop-blur-xl">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -149,7 +149,7 @@ export default function SupplyChainMedicineDetail({
       {/* Main Analysis Grid: Explainable AI & What If Simulation */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Explainable AI Reasoning Panel */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4 border-b border-slate-800 pb-3">
             <Sparkles className="h-5 w-5 text-teal-400" />
             <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">Explainable AI Reasoning</h2>
@@ -191,7 +191,7 @@ export default function SupplyChainMedicineDetail({
         </div>
 
         {/* "What Will Happen If We Do Nothing?" Section */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
           <div className="flex items-center gap-2 mb-4 border-b border-slate-800 pb-3">
             <AlertTriangle className="h-5 w-5 text-amber-400" />
             <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">What Will Happen If We Do Nothing?</h2>
@@ -228,7 +228,7 @@ export default function SupplyChainMedicineDetail({
       </div>
 
       {/* Demand Forecast Chart across Horizons */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
           <div>
             <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">Demand Forecast Curve & Prediction Intervals</h2>

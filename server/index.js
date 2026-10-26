@@ -218,7 +218,7 @@ app.post('/api/medicine/extract-fields', (req, res) => {
 });
 
 // --- Auth Endpoints ----------------------------------------------------
-app.post('/api/auth/login', (req, res) => {
+const handleLogin = (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -250,9 +250,12 @@ app.post('/api/auth/login', (req, res) => {
     console.error('[auth] Login error:', err);
     res.status(500).json({ error: 'Internal server error during login' });
   }
-});
+};
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/login', handleLogin);
+app.post('/auth/login', handleLogin);
+
+const handleRegister = (req, res) => {
   try {
     const { name, email, password, role, phone, address, dateOfBirth, employeeId, photoUrl } = req.body || {};
     if (!name || !email || !password) {
@@ -297,7 +300,10 @@ app.post('/api/auth/register', (req, res) => {
     console.error('[auth] Registration error:', err);
     res.status(500).json({ error: 'Internal server error during registration' });
   }
-});
+};
+
+app.post('/api/auth/register', handleRegister);
+app.post('/auth/register', handleRegister);
 
 // --- Whole-state endpoints ---------------------------------------------
 // GET  /api/state  -> returns every collection in one payload (used on app load)

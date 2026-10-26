@@ -162,7 +162,7 @@ export default function SupplyChainDashboard({
       )}
 
       {/* Header & Quick Action Buttons */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl backdrop-blur-xl">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl">
         <div>
           <div className="flex items-center gap-2">
             <span className="p-2 bg-teal-500/10 rounded-xl text-teal-400 border border-teal-500/20">
@@ -241,7 +241,7 @@ export default function SupplyChainDashboard({
       </div>
 
       {/* Main Table Controls & Filters */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
           <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">Shortage Risk & Forecast Table</h2>
 
@@ -304,7 +304,7 @@ export default function SupplyChainDashboard({
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
+            <tbody className="divide-y divide-slate-800/60 bg-slate-900">
               {filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-slate-500">
@@ -347,7 +347,7 @@ export default function SupplyChainDashboard({
       </div>
 
       {/* Model Evaluation & Research Baseline Comparison Section */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
         <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
           <div>
             <h2 className="text-base font-bold text-white uppercase font-mono tracking-wider">Model Evaluation & Baseline Comparison</h2>
