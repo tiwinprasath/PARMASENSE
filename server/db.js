@@ -69,7 +69,34 @@ function ensureDataFile() {
   }
 }
 
+function readVercelState() {
+  const parsed = fs.existsSync(DB_FILE)
+    ? JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'))
+    : loadSeed();
+  const state = emptyState();
+  const seeded = loadSeed();
+
+  for (const key of COLLECTIONS) {
+    if (Array.isArray(parsed[key]) && parsed[key].length > 0) {
+      state[key] = parsed[key];
+    } else if (Array.isArray(seeded[key])) {
+      state[key] = seeded[key];
+    }
+  }
+
+  return state;
+}
+
 function readState() {
+  if (process.env.VERCEL) {
+    try {
+      return readVercelState();
+    } catch (err) {
+      console.error('[db] Failed to read bundled Vercel state:', err.message);
+      throw err;
+    }
+  }
+
   ensureDataFile();
   try {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
@@ -95,6 +122,10 @@ function readState() {
 }
 
 function writeState(state) {
+  if (process.env.VERCEL) {
+    throw new Error('Persistent writes are unavailable with the bundled Vercel JSON database. Configure a managed database.');
+  }
+
   ensureDataFile();
   fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
   return state;
